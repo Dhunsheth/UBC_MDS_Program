@@ -1,0 +1,47 @@
+DATA 530 Lecture 5 Answers
+--------------------------
+
+Slide #9 - Macros Question
+
+Answer: A, C, and D are all true
+
+
+Slide #22 - Try it: Immediate Window
+
+? "Hey There!"
+? 765 * 39
+RedItalics   
+OR:
+Range("C7").Select
+RedItalics
+Range("B4").Value = "DATA"
+Range("A6").Value = 100
+
+
+Slide #27 - UDF
+
+Function CountNum(str As String) As Integer
+    Dim i As Integer
+    Dim count As Integer
+    
+    For i = 1 To Len(str)
+        If IsNumeric(Mid(str, i, 1)) Then
+            count = count + 1
+        End If
+    Next i
+    CountNum = count
+End Function
+
+
+Slide #31 - Try it: Excel Objects
+
+1) 
+Worksheets("form").Activate
+
+
+2)
+Worksheets("macro").Activate
+Range("A4").Select
+
+3)
+msgbox ActiveCell.Value
