@@ -1,0 +1,37 @@
+I created a repo in GitHub and here is the link:
+https://github.com/khalad-hasan/data541
+
+git clone https://github.com/khalad-hasan/data541
+cd data541
+touch master.txt
+git add .
+git commit -m "Added master.txt"
+
+[Now if I go to the directory where I cloned the remote repo, I will see master.txt file and .git directory]
+
+To create a new branch:
+git branch newBranch
+To checkout to the branch:
+git checkout newBranch
+
+[Now I am at the new branch, where I can see the same and folder  - master.txt and git direcroty]
+
+To create a new file in the newBranch:
+
+touch branch.txt
+
+[Now I can see two files, branch.txt and master.txt. I am going to commit the changes.]
+
+git add .
+git commit -m "added branch.txt"
+
+Now to navigate to the main branch
+git checkout main 
+
+[I am at the main branch. Interestingly, I can only see one text file there - master.txt where I created another file, branch.txt in the newBranch. If I go to the new branch with "checkout" command, I will see two files as I had committed there before. ]
+
+To merge the file:
+
+ git merge newBranch
+
+[Now I can see two files in the directory. The branch.txt file is merged from the other branch]

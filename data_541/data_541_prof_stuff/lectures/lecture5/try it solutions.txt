@@ -1,0 +1,40 @@
+Slide # 24
+
+a)
+
+1. Span Elements
+    - Links
+    - Images
+2. Block Elements
+    - Headings
+    - Lists
+
+b)
+
+1. Span Elements
+    - *Links*
+    - Images
+2. Block Elements
+    - Headings
+    - Lists
+
+c)
+
+1. **Span Elements**
+    - *Links*
+    - Images
+2. **Block Elements**
+    - Headings
+    - Lists
+
+
+Slide # 31
+
+University | Website | Email
+---|---|--- 
+UBC Vancouver | [Click here](http://www.ubc.ca) | <contact@ubc.ca>
+UBC Okanagan | [Click here](http://www.ok.ubc.ca) | <contact@ok.ubc.ca>
+ 
+
+
+

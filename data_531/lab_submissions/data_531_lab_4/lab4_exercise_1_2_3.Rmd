@@ -1,0 +1,160 @@
+---
+title: "Data-531-Lab-4"
+author: "Dhun Sheth"
+date: "2023-09-27"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse, quietly = TRUE)
+library(jsonlite, quietly = TRUE)
+library(dplyr)
+library(ggplot2)
+library(docstring)
+
+```
+
+## Exercise 1
+```{r exercise_1}
+
+avglist <- function(lst, low=0, high=100){
+  #' @title Calculates average of a list of values
+  #'
+  #' @description Calculates the average of a list of values given a list and the range (low, high). 
+  #'The function will order the list first, and then calculate the average of all values between the lower and higher value, non-inclusive.
+  #'
+  #' @param lst an object of class list. List of values.
+  #' @param low an object of class double. The lower value of the range, non-inclusive. 
+  #' @param high an object of class double. The higher value of the range, non-inclusive. 
+  #' @output returns either the mean of the list or an error message if list is empty, or not of type list, or lower/upper value not found in the list.
+  #' @examples
+    #' x <- list(2, 3, 10, 15, 6, 7, 7, 8, 22, 22, 23, 1)
+    #' func_response <- avglist(x, 6, 22)
+    #' function will return average of 9.4 
+    #' list its calculating the average over is (7,7,8,10,15)
+  if (is.list(lst)){
+    if (length(lst)==0){
+      return("List is of size 0")
+    }else {
+      # if (length(lst) > 1){
+      #   lst <- lst[order(unlist(lst))]
+      # }else {
+      #   lst[[1]] <- sort(unlist(lst))
+      # }
+      lst <- sort(unlist(lst))
+      low_index <- which(unlist(lst) == low)[length(which(unlist(lst) == low))] # length(which(unlist(lst) == low)) gives last low value
+      high_index <- which(unlist(lst) == high)[1] # length(which(unlist(lst) == high)) give last high value but I want first high value
+      if (identical(low_index, integer(0))) {
+        return("Lower value not found in list")
+      }else if (is.na(high_index)) {
+        return("Upper value not found in list")
+      }else {
+        mean_lst <- mean(unlist(lst)[(low_index + 1):(high_index - 1)])
+        return(mean_lst)
+      }
+    }
+  }else {
+    return("Didn't send a list")
+  }
+}
+
+?avglist # printing documentation
+
+test <- list(sample(seq(1,100,1),100))
+results <- avglist(test,30,100)
+print(results)
+
+test2 <- list(sample(seq(1,100,1),100, replace = TRUE)) # with replace as true, there is a chance 1 or both range values may not be found in the list
+results2 <- avglist(test2,30,100)
+print(results2)
+
+
+```
+## Exercise 2
+```{r exercise_2}
+
+lab4 <- read_csv("lab4.csv")
+
+new_df <- data.frame(
+  name = c("Diego", "Kim", "Nelson"),
+  age = c(22,67,11),
+  gender = c("M", "F", "M"),
+  height = c(129,103,100),
+  weight = c(50.77,32.11,22.74),
+  country = c("Mexico","North Korea","Uganda"),
+  email = c("diegor@mail.tfr.mx","kimlady@gmail.com","nSekitolenko@urj.com")
+)
+new_df <- as_tibble(new_df)
+print(new_df)
+
+combined_df <- full_join(lab4,new_df)
+print(combined_df)
+
+num_averages <- colMeans(combined_df[sapply(combined_df, is.numeric)], na.rm = TRUE)
+print(num_averages)
+
+
+```
+
+## Exercise 3
+```{r exercise_3}
+
+sensor <- read_csv("sensor.csv")
+
+for (i in seq(1,length(sensor$timestamp),1)){
+  sensor$day[i] <- as.double(substr(sensor$timestamp[i],8,9))
+  sensor$time[i] <- substr(sensor$timestamp[i],45,52)
+}
+print(sensor)
+
+sensor$value <- as.double(sensor$value)
+
+sensors_clean <- sensor %>% filter(value <= 100) %>% filter(value >= 0)
+
+print(sensors_clean)
+
+# count_valid <- length(sensors_clean$value)
+# min_reading <- min(sensors_clean$value)
+# mean_reading <- mean(sensors_clean$value)
+# range_reading <- range(sensors_clean$value)
+# max_reading_site_2 <- max(filter(sensors_clean, siteid == 2)$value)
+# count_site_1_sensor_2 <- length(filter(sensors_clean, siteid == 1 & sensorid == 2)$value)
+
+# assume summary is for sensor dataframe
+count_valid <- length(sensors_clean$value)
+min_reading <- min(filter(sensor, !is.na(value))$value)
+mean_reading <- mean(filter(sensor, !is.na(value))$value)
+range_reading <- range(filter(sensor, !is.na(value))$value)
+max_reading_site_2 <- max(filter(sensor, !is.na(value) & siteid == 2)$value)
+count_site_1_sensor_2 <- length(filter(sensor, siteid == 1 & sensorid == 2)$value)
+
+
+data_summary <- list(count_valid, min_reading, mean_reading, range_reading, 
+                     max_reading_site_2, count_site_1_sensor_2)
+names(data_summary) <- c("count_valid","min_reading","mean_reading", "range_reading", 
+                         "max_reading_site_2", "count_site_1_sensor_2")
+print(data_summary)
+
+sensors_clean_hist <- ggplot(sensors_clean, aes(x=value)) +
+  geom_histogram( binwidth=3, fill="#69b3a2", color="#e9ecef", alpha=0.9) +
+  ggtitle("Count of Values in clean_sensors")
+
+print(sensors_clean_hist)
+
+# assume box plot is for the total sensor data
+# sensors_clean_box_plot <- ggplot(sensors_clean, aes(x=sensorid, y=value, group=sensorid)) + 
+#    geom_boxplot()
+
+sensor_box_plot <- ggplot(sensor, aes(x=sensorid, y=value, group=sensorid)) + 
+   geom_boxplot()
+
+print(sensor_box_plot)
+
+
+```
+

@@ -1,0 +1,1 @@
+cat input.txt | cut -c1-3 | tr [:lower:] [:upper:] | sort -r

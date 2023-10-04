@@ -1,0 +1,30 @@
+Slide#25
+
+import pygal 
+line_chart = pygal.Line()
+city = ['Winnipeg', 'Kelowna', 'Vancouver', 'Toronto']
+rainfall = [10, 4, 20, 6]
+snowfall = [30, 8, 2, 12]
+line_chart.x_labels = city
+line_chart.add('Rainfall', rainfall)
+line_chart.add('Snowfall',  snowfall)
+line_chart.render_to_file('output.svg')
+
+Slide#41
+
+from bokeh.layouts import gridplot
+x= [2014,2015,2016,2017,2018]
+data1= [16.5,17.5,17.9,18.25,18.58]
+data2= [22.14,22.53,22.81,23.52,23.92]
+data3= [30.02,30.13,30.23,30.55,30.94]
+data4= [15.51,16.1,16.25,16.76,16.96]
+s1 = figure(width=250, height=250)
+s1.line(x, data1, line_width=2, color="black")
+s2 = figure(width=250, height=250)
+s2.triangle(x, data2, size=10, color="firebrick")
+s3 = figure(width=250, height=250)
+s3.square(x, data3, size=10, color="olive")
+s4 = figure(width=250, height=250)
+s4.square(x, data4, size=10, color="olive")
+p = gridplot([[s1, s2], [s3, s4]], toolbar_location=None)
+show(p)

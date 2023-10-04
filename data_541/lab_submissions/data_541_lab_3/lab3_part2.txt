@@ -1,0 +1,52 @@
+Part 2
+
+QUESTION 1
+
+1.
+git clone https://github.com/ubco-mds-2023-labs/data-541-lab-3-Dhunsheth.git
+
+2.
+cd /mnt/c/Users/Dhuns/Documents/ubc/school_work/block_1/data_541/submissions/data-541-lab-3-Dhunsheth
+
+3.
+git branch Markdown
+
+git branch -a # to see all available branches
+
+4. 
+git checkout Markdown
+
+5.
+git status
+
+6.
+git add .
+git commit -m 'adding Part 1 files'
+
+7.
+git push -u origin Markdown
+
+8.
+checked github and confirmed new branch called Markdown was created
+
+QUESTION 2
+
+1. 
+git checkout main
+
+2. 
+git merge Markdown
+
+3.
+git add .
+git origin push
+
+4.
+git branch --delete Markdown
+git push origin --delete Markdown
+
+5.
+git log --pretty=oneline
+
+
+

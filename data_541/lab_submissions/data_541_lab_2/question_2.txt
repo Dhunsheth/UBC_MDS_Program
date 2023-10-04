@@ -1,0 +1,36 @@
+1. ssh-keygen -t rsa
+
+2. ssh-copy-id root@147.182.205.187
+
+3. ssh root@147.182.205.187
+
+4. ls -a
+cd .ssh
+cat authorized_keys
+
+5. touch env_variables.txt
+ env>>env_variables.txt
+ cat env_variables.txt #to check if it worked
+
+6. exit
+ scp root@147.182.205.187:env_variables.txt /mnt/c/Users/Dhuns/Documents/ubc/school_work/block_1/data_541/submissions/data-541-lab-2-Dhunsheth
+
+
+ 7. env 
+ cat env_variables.txt
+
+ 8. 
+ a) 
+ local machine: doesnt have ssh variables
+ remote machine: SSH_CONNECTION=142.231.40.149 51584 147.182.205.187 22
+ SSH_CLIENT=142.231.40.149 51584 22
+
+ b)
+ local machine: LOGNAME=dhun97
+ remote machine: LOGNAME=root
+
+ c) 
+local machine: HOME=/home/dhun97
+USER=dhun97
+remote machine: HOME=/root
+USER=root

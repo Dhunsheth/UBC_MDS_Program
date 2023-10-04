@@ -1,0 +1,17 @@
+Try it:
+
+1. ssh-keygen –t rsa
+
+2. ssh-copy-id root@<WRITE IP ADDRESS HERE>
+
+3. ssh root@<WRITE IP ADDRESS HERE>
+
+4. nano remoteScript.sh
+   echo "Server script"
+   chmod +x remoteScript.sh
+   ./remoteScript.sh
+
+5. logout
+   mkdir NewScript
+   scp root@<WRITE IP ADDRESS HERE>:~/remoteScript.sh ~/NewScript/
+

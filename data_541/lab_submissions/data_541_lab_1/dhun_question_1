@@ -1,0 +1,29 @@
+1. mkdir DATA541
+
+2. cd /home/dhun97/documents/ubc/data_541/submissions/data-541-lab-1-Dhunsheth/DATA541 # my path from root to DATA541 folder
+
+3. mkdir "Lab 1"
+
+4. nano readme.txt
+
+'''in nano
+Name: Dhun Sheth
+Favorite Game: Golf
+Program: MDS
+University: UBC-O
+'''
+ctrl+O # to save
+ctrl+X # to exit 
+ls # to confirm readme.txt file was saved
+
+5. cp readme.txt "Lab 1"
+cd Lab\ 1
+ls # to confirm file was copied
+
+6. sort readme.txt > sorted.txt
+# to check file is created and contents
+ls
+cat sorted.txt
+
+7. cp -r "Lab 1" "Lab 2"
+

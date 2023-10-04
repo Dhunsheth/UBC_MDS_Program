@@ -1,0 +1,60 @@
+﻿Slide 34
+
+Question 1:
+
+read -p "Enter a number: " num
+if  [ $num -gt 0 ]; then
+  echo "Positive number"
+else
+  echo "Negative Number"
+Fi
+
+Question 2:
+
+read -p "Enter two numbers: " num1 num2
+echo "Sum: " $(( num1 + num2 ))
+echo "Diff: " $(( num1 - num2 ))
+echo "Product: " $(( num1 * num2 ))
+echo "Quotient: " $(( num1 / num2 ))
+
+
+Slide 50:
+
+Question 1:
+sum=0;
+for (( i =0;i<=100;i++ ))
+do
+   (( sum += i ))
+done
+echo "Sum: $sum“
+
+Question 2:
+read -p "Enter a number: " num
+result=1;
+for (( i=2;i<=$num;i++ ))
+  do
+       (( result = result * i ))
+  done
+echo "Output: $result"
+
+
+Slide 62:
+
+1
+sort country.txt>sorted.txt
+
+2
+wc -l country.txt>count.txt
+
+3
+more country.txt>output.txt
+more country.txt>>output.txt
+more country.txt>>output.txt
+
+4
+grep e output.txt>search.txt
+
+5
+more sorted.txt
+more output.txt
+more search.txt

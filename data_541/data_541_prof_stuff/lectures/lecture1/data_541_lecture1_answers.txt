@@ -1,0 +1,29 @@
+DATA 541 Lecture 1 Answers
+--------------------------
+
+Slide # 27
+
+Answer: D
+True: 2, 3, 4
+
+
+Slide # 36
+
+Answer: A
+All wrong.
+
+
+
+Slide # 42
+
+1. Mkdir 541
+2. cd 541 or ls 541
+3. Notepad readme.txt or touch readme.txt
+4. more readme.txt or cat readme.txt
+5. sort readme.txt
+6. Find <substring> readme.txt
+7. dir or ls
+8. ren readme.txt message.txt or mv readme.txt message.txt
+9. del message.txt or rm message.txt
+10. cd.. or cd ..
+11. rmdir 541
