@@ -1,0 +1,10 @@
+<!DOCTYPE root [
+	<!ELEMENT root(Dept+)>
+	<!ELEMENT Dept(Emp*, budget?)>
+		<!ATTLIST Dept dno ID #REQUIRED>
+		<!ATTLIST Dept mgr IDREF #IMPLIED>
+	<!ELEMENT budget (#PCDATA)>
+	<!ELEMENT Emp (name)>
+		<!ATTLIST Emp eno ID #REQUIRED>
+	<!ELEMENT name (#PCDATA)>
+]>

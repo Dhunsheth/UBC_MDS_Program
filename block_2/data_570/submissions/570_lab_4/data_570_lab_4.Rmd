@@ -1,0 +1,91 @@
+---
+title: "Data-570 Lab 4"
+author: "Dhun Sheth"
+date: "2023-11-09"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(datarium)
+
+data("marketing", package = "datarium")
+head(marketing)
+
+```
+
+## Question 1
+### Part 1
+
+```{r question_1_part_1}
+
+reg_part1 <- lm(sales~youtube+facebook, data=marketing)
+print(summary(reg_part1))
+
+```
+### Part 2
+```{r question_1_part_2}
+
+reg_part2 <- lm(sales~youtube+facebook+youtube:facebook, data=marketing)
+
+facebook_cost <- 1000
+youtube_increase <- 1000
+
+print(summary(reg_part2))
+
+yt_increase <- (1.910e-02)*(1000) + (9.054e-04)*(1000^2)
+fb_increase <- (2.886e-02)*(1000) + (9.054e-04)*(1000^2)
+
+```
+
+i) $1000 increase on YouTube then sales increase 0.019(1000) + 0.00091(1000^2) = `r yt_increase`.
+ii) $1000 increase on facebook then sales increase 0.029(1000) + 0.00091(1000^2) = `r fb_increase`.
+
+### Part 3
+
+```{r question_1_part_3}
+
+print(summary(reg_part1))
+print(summary(reg_part2))
+
+
+```
+
+Based on the adjusted R^2 value, we should NOT remove the interaction term
+because the model with the interaction produced a higher adjusted R^2 value of
+0.9673 vs. 0.8962.
+
+## Question 2
+
+```{r question_2}
+
+x <- rnorm(100)
+x2 <- x^2
+lamda <- exp(1-x-2*x2)
+n <- rpois(100, lamda)
+
+pois_glm <- glm(n~x+x2, family = poisson)
+
+print(coef(pois_glm))
+
+
+```
+
+
+
+## Question 3
+```{r question_3}
+
+x <- rnorm(100)
+x2 <- x^2
+p <- (exp(1-x-2*x2))/(1+exp(1-x-2*x2))
+n <- rbinom(100, 1, prob=p)
+
+binom_glm <- glm(n~x+x2, family = binomial)
+
+print(coef(binom_glm))
+
+```
+
+

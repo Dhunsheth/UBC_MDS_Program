@@ -1,0 +1,109 @@
+---
+title: "Data-540-Lab-3"
+author: "Dhun Sheth"
+date: "2023-10-27"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library("DBI")
+library("RMySQL")
+library("RSQLite")
+```
+
+### Part 1
+```{r question_2_part_1}
+
+con <- dbConnect(RMySQL::MySQL(), user='dsheth', password='32376881',
+dbname='tpch', host='cosc304.ok.ubc.ca')
+
+```
+
+### Part 2
+```{r question_2_part_2}
+
+part_2_query <- "
+select ps_partkey, ps_suppkey, ps_availqty, year(l_shipdate) as year, 
+sum(l_quantity) as shippedQuantity 
+from partsupp join lineitem on l_partkey = ps_partkey and l_suppkey = ps_suppkey
+group by ps_partkey, ps_suppkey, ps_availqty, year(l_shipdate)
+order by ps_partkey, ps_suppkey, year(l_shipdate)
+"
+part_2_res <- dbGetQuery(con, part_2_query)
+part_2_res[1:10,]
+```
+
+
+### Part 3,4
+```{r question_2_part_3_4}
+
+con_sqlite <- dbConnect(RSQLite::SQLite(), ":memory:")
+
+
+dbWriteTable(con_sqlite, "part_3_sqlite", part_2_res)
+part_3_4_data <- dbGetQuery(con_sqlite,"SELECT * FROM part_3_sqlite")
+part_3_4_data[1:10,]
+```
+
+
+### Part 5
+```{r question_2_part_5}
+
+part_5_query <- "
+select * 
+from part_3_sqlite
+where year = 2018 and ps_availqty < shippedQuantity
+limit 5
+"
+
+part_5_data <- dbGetQuery(con_sqlite, part_5_query)
+
+print('Products with insufficient inventory based on 2018 sales:')
+part_5_data
+
+```
+
+### Part 6
+```{r question_2_part_6}
+
+part_6_query <- "
+select year, shippedQuantity 
+from part_3_sqlite
+where ps_partkey = 217 and ps_suppkey = 18
+"
+
+part_6_data <- dbGetQuery(con_sqlite, part_6_query)
+part_6_reg <- lm(shippedQuantity ~ year, data=part_6_data)
+summary(part_6_reg)
+
+reg_est_2019 <- part_6_reg$coefficients[2] * 2019 + part_6_reg$coefficients[1]
+print('Estimated Sales for 2019 based on the regression is:')
+reg_est_2019[['year']]
+
+# plot(part_6_data)
+```
+### Part 7
+```{r question_2_part_7}
+
+part_7_query <- "
+select *, round((ps_availqty/shippedQuantity),2) as percentageOverstocked
+from part_3_sqlite
+where year = 2018 and shippedQuantity >= 6
+order by percentageOverstocked desc
+limit 10
+"
+part_7_data <- dbGetQuery(con_sqlite, part_7_query)
+part_7_data
+
+```
+
+
+
+```{r disconnect, include=TRUE}
+
+dbDisconnect(con)
+dbDisconnect(con_sqlite)
+
+```

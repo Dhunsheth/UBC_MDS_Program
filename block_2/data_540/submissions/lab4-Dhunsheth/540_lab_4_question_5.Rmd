@@ -1,0 +1,48 @@
+---
+title: "Data-540-Lab-4"
+author: "Dhun Sheth"
+date: "2023-11-01"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(mongolite)
+```
+
+
+### Part 1 to 3
+
+```{r question_5_part_1_to_5}
+
+con_region <- mongo(collection = "region", db = "data540", 
+    url = "mongodb+srv://data540:data540@cluster0.kevs3bk.mongodb.net/data540")
+
+sort_order <- '{"r_regionkey": 1}'
+count_region_rows <- con_region$count()
+print("Number of Records: ")
+print(count_region_rows)
+
+rows <- con_region$find(sort=sort_order)
+print(rows)
+
+con_region$disconnect()
+```
+
+### Part 4 to 5
+```{r question_5_part_4_to_5}
+
+con_nation <- mongo(collection = "nation", db = "data540", 
+  url = "mongodb+srv://data540:data540@cluster0.kevs3bk.mongodb.net/data540")
+
+projection <- '{"n_nationkey": 1, "n_name": 1}'
+query_condition <- '{"n_nationkey": {"$lt":10}}'
+sort_order <- '{"n_nationkey": 1}'
+rows <- con_nation$find(query_condition, fields=projection, sort=sort_order)
+
+print(rows)
+
+con_nation$disconnect()
+
+
+```

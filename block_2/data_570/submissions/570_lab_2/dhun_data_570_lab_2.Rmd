@@ -1,0 +1,300 @@
+---
+title: "Data-570-Lab-2"
+author: "Dhun Sheth"
+date: "2023-10-26"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+``` {r question_1, include=FALSE}
+
+## Life Expectancy Data
+
+pairs(state.x77)
+
+# Now fit a standard linear model, and add the line to the plot in red.
+data(state)
+# renames the rows to 2-letter abbreviation of state names
+statedata <- data.frame(state.x77,row.names=state.abb)
+attach(statedata)
+fit1 <- lm(Life.Exp~Illiteracy)
+fit2 <- lm(Life.Exp~Illiteracy+Murder+HS.Grad+Frost)
+
+fit <- lm(Life.Exp~., data = statedata)
+summary(fit)
+
+```
+
+``` {r question_2, include=FALSE}
+
+## Adjusted R^2 and BIC
+
+library(leaps)
+leaps=regsubsets(Life.Exp~.,data=statedata )
+reg_summary = summary(leaps)
+reg_summary$rsq
+
+reg_summary$adjr2
+
+plot(leaps, scale = "adjr2")
+plot(leaps, scale = "bic")
+```
+
+``` {r question_3, include=FALSE}
+
+## AIC
+
+step(fit)
+
+```
+
+``` {r question_4, include=FALSE}
+
+## Mixed step-wise selection
+
+# Now, regressing Life.Exp on Population, regressing Life.Exp on Income,
+# regressing Life.Exp on Illiteracy, d regressing Life.Exp on Murder, regressing Life.Exp
+# on HS.Grad, regressing Life.Exp on Frost, and regressing Life.Exp on Area
+summary(lm(Life.Exp~ Population, data=statedata))$coefficients[,4]
+
+summary(lm(Life.Exp~ Income, data=statedata))$coefficients[,4]
+
+summary(lm(Life.Exp~ Illiteracy, data=statedata))$coefficients[,4]
+
+summary(lm(Life.Exp~ Murder, data=statedata))$coefficients[,4]
+
+summary(lm(Life.Exp~ HS.Grad, data=statedata))$coefficients[,4]
+
+summary(lm(Life.Exp~ Frost, data=statedata))$coefficients[,4]
+
+summary(lm(Life.Exp~ Area, data=statedata))$coefficients[,4]
+
+# The predictor Murder having the smallest t-test P-value it is 2.260070e-11. As a result
+# of the first step, we enter Murder into our stepwise model.
+# Now, following the step 2, we fit each of the two-predictor models that include Murder
+# as a predictor
+g1 <- lm(Life.Exp~ Murder, data=statedata)
+summary(update(g1,. ~ . +Population))$coefficients[,4]
+
+summary(update(g1,. ~ . +Income))$coefficients[,4]
+
+summary(update(g1,. ~ . +Illiteracy))$coefficients[,4]
+
+summary(update(g1,. ~ . +HS.Grad))$coefficients[,4]
+
+summary(update(g1,. ~ . +Frost))$coefficients[,4]
+
+summary(update(g1,. ~ . +Area))$coefficients[,4]
+
+
+g2 <- update(g1,. ~ . +HS.Grad)
+summary(update(g2,. ~ . +Population))$coefficients[,4]
+
+summary(update(g2,. ~ . +Income))$coefficients[,4]
+
+summary(update(g2,. ~ . +Illiteracy))$coefficients[,4]
+
+summary(update(g2,. ~ . +Frost))$coefficients[,4]
+
+summary(update(g2,. ~ . +Area))$coefficients[,4]
+
+
+g3 <- update(g2,. ~ . +Frost)
+summary(update(g3,. ~ . +Population))$coefficients[,4]
+
+summary(update(g3,. ~ . +Income))$coefficients[,4]
+
+summary(update(g3,. ~ . +Illiteracy))$coefficients[,4]
+
+summary(update(g3,. ~ . +Area))$coefficients[,4]
+
+
+g4 <- update(g3,. ~ . +Population)
+summary(update(g4,. ~ . +Income))$coefficients[,4]
+
+summary(update(g4,. ~ . +Illiteracy))$coefficients[,4]
+
+summary(update(g4,. ~ . +Area))$coefficients[,4]
+
+
+```
+
+``` {r question_5, include=FALSE}
+
+## Backward selection
+
+bmod1 <- lm(Life.Exp~.-Area, data=statedata)
+summary(bmod1)
+
+# The above is equivalent to using the following command
+fit <- update(fit, .~. - Area)
+
+# We will continue our backwards selection method using the update() formula. Since
+# Illiteracy has the highest p-value, we remove it from the model.
+fit <- update(fit, .~. -Illiteracy)
+summary(fit)
+
+# Since Income has the highest p-value, we remove it from the model.
+fit <- update(fit, .~. -Income)
+summary(fit)
+
+fit <- update(fit, .~. -Population)
+summary(fit)
+
+```
+
+``` {r question_6, include=FALSE}
+
+## Forward selection
+
+# This procedure works the same way as stepwise regression except that once a predictor
+# is entered into the model with the smallest p-value less than αenter = 0.1, it is never
+# removed.
+
+```
+
+## Question 7
+### Part 7.1
+``` {r question_7.1, include=TRUE}
+
+library(leaps)
+
+bp=read.table("bloodpress.txt", header = TRUE, sep = "" )
+
+bp_fit <- lm(BP~., data = bp)
+
+leaps=regsubsets(BP~.,data=bp)
+bp_reg_summary = summary(leaps)
+bp_reg_summary$adjr2
+
+plot(leaps, scale = "adjr2")
+plot(leaps, scale = "bic")
+
+```
+
+### Part 7.2
+``` {r question_7.2, include=TRUE}
+
+alpha_enter = 0.1
+alpha_remove = 0.1
+
+# Step 1
+summary(lm(BP~Age , data=bp))$coefficients[,4]
+summary(lm(BP~Weight , data=bp))$coefficients[,4]
+summary(lm(BP~BSA , data=bp))$coefficients[,4]
+summary(lm(BP~Dur , data=bp))$coefficients[,4]
+summary(lm(BP~Pulse , data=bp))$coefficients[,4]
+summary(lm(BP~Stress, data=bp))$coefficients[,4]
+
+# Weight has lowest p-value, so on first step enter Weight
+g1 <- lm(BP~ Weight, data=bp)
+summary(update(g1,. ~ . +Age))$coefficients[,4]
+summary(update(g1,. ~ . +BSA))$coefficients[,4]
+summary(update(g1,. ~ . +Dur))$coefficients[,4]
+summary(update(g1,. ~ . +Pulse))$coefficients[,4]
+summary(update(g1,. ~ . +Stress))$coefficients[,4]
+
+# Age has the smallest p-value after regressing BP over Weight and Age
+# Enter Age into step wise model
+# Go back and check t-test P-value for Weight - it is 6.86e-17 which is smaller 
+# than alpha_remove so continue on to 3rd step
+g2 <- update(g1,. ~ . +Age)
+summary(update(g2,. ~ . +BSA))$coefficients[,4]
+summary(update(g2,. ~ . +Dur))$coefficients[,4]
+summary(update(g2,. ~ . +Pulse))$coefficients[,4]
+summary(update(g2,. ~ . +Stress))$coefficients[,4]
+
+# BSA has smallest p-value, and t-test for both Weight and Age is still below 
+# alpha_remove so continue. 
+g3 <- update(g2,. ~ . +BSA)
+summary(update(g3,. ~ . +Dur))$coefficients[,4]
+summary(update(g3,. ~ . +Pulse))$coefficients[,4]
+summary(update(g3,. ~ . +Stress))$coefficients[,4]
+
+# All p-values for the remaining predictors are above our alpha_enter 
+# value, so we stop our step wise regression procedure.
+
+```
+
+
+The final regression model based on the step wise procedure contains only Weight, Age, and BSA predictors.
+
+### Part 7.3
+``` {r question_7.3, include=TRUE}
+
+alpha_enter = 0.1
+
+# Step 1
+summary(lm(BP~Age , data=bp))$coefficients[,4]
+summary(lm(BP~Weight , data=bp))$coefficients[,4]
+summary(lm(BP~BSA , data=bp))$coefficients[,4]
+summary(lm(BP~Dur , data=bp))$coefficients[,4]
+summary(lm(BP~Pulse , data=bp))$coefficients[,4]
+summary(lm(BP~Stress, data=bp))$coefficients[,4]
+
+# Weight has lowest p-value, so on first step enter Weight
+g1 <- lm(BP~ Weight, data=bp)
+summary(update(g1,. ~ . +Age))$coefficients[,4]
+summary(update(g1,. ~ . +BSA))$coefficients[,4]
+summary(update(g1,. ~ . +Dur))$coefficients[,4]
+summary(update(g1,. ~ . +Pulse))$coefficients[,4]
+summary(update(g1,. ~ . +Stress))$coefficients[,4]
+
+# Age has the smallest p-value after regressing BP over Weight and Age
+# Enter Age into step wise model
+# For forward regression procedure do not go back and remove any predictors, 
+# so continue to next step. 
+g2 <- update(g1,. ~ . +Age)
+summary(update(g2,. ~ . +BSA))$coefficients[,4]
+summary(update(g2,. ~ . +Dur))$coefficients[,4]
+summary(update(g2,. ~ . +Pulse))$coefficients[,4]
+summary(update(g2,. ~ . +Stress))$coefficients[,4]
+
+# BSA has smallest p-value. 
+g3 <- update(g2,. ~ . +BSA)
+summary(update(g3,. ~ . +Dur))$coefficients[,4]
+summary(update(g3,. ~ . +Pulse))$coefficients[,4]
+summary(update(g3,. ~ . +Stress))$coefficients[,4]
+
+# All p-values for the remaining predictors are above our alpha_enter value, 
+# so we stop our forward regression procedure.
+
+```
+
+For forward regression, it works the same way as the step wise regression procedure except you never remove a predictor once it has been added. In part 7.2, the step wise regression procedure was performed and at no point were any predictors removed once the procedure began, so the result of the forward regression procedure is the same as the step wise procedure. That is, the final regression model from the forward regression procedure consists of Weight, Age, and BSA. 
+
+### Part 7.4
+``` {r question_7.4, include=TRUE}
+
+alpha_remove = 0.1
+
+fit <- lm(BP~., data = bp)
+
+
+# Start backward regression procedure
+summary(fit)$coefficients
+
+# Dur predictor has the largest p-value, so remove this predictor and continue.
+
+fit <- update(fit, .~. - Dur)
+summary(fit)$coefficients
+
+# Pulse predictor has the largest p-value, so remove this predictor and continue.
+fit <- update(fit, .~. - Pulse)
+summary(fit)$coefficients
+
+# Stress predictor has the largest p-value, so remove this predictor and continue.
+fit <- update(fit, .~. - Stress)
+summary(fit)$coefficients
+
+# The remaining predictors all have t-value below the alpha_remove threshold, 
+# so none of them can be removed. Stop backward regression procedure here. 
+
+```
+The final model after the backward regression procedure has ended includes the Age, Weight, and BSA predictors. 

@@ -1,0 +1,36 @@
+<?xml version="1.0" standalone="no"?>
+<Orders>
+   <Order orderId = "1" customerId = "C1">
+      <LineItem productId = "P1"><price>25.00</price><quantity>11</quantity></LineItem>
+      <LineItem productId = "P2"><quantity>10</quantity><price>2.00</price></LineItem>
+      <totalAmount>27.00</totalAmount>
+   </Order>
+   <Order orderId = "2">
+      <LineItem productId = "P1"><quantity>1</quantity><price>25.00</price></LineItem>
+      <totalAmount>A LOT</totalAmount>
+   </Order>
+   <Order orderId = "3" customerId = "C1>
+      <LineItem productId = "P4"><quantity>2</quantity><price50.00</price></LineItem>
+   </Order>
+   <Customer customerId = "C1">
+      <cname>Aditya Bian</cname>
+   </Customer>
+   <Customer customerId = "C1">
+      <cname>Francisco Pena
+      <address>11 Nowhere Street</address>
+      <numOrders>4</numOrders>
+   </Customer>
+   <Product productId = "P1">
+      <pname>Soap</pname>
+      <category>Personal Hygiene</category>
+      <price>3.00</price>
+   </Product>
+   <Product productId = "P2">
+      <pname>Pillow</pname>		
+      <price>25.00</price>
+   </Product>
+   <Product>
+      <pname>Towel</pname>
+	  <category>Bathroom</category>
+      <price>5.00</price>
+   </Product>

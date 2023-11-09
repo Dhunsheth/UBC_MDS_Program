@@ -1,0 +1,38 @@
+<?xml version = "1.0" ?>
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+<xsd:element name = "root">
+	<xsd:complexType>
+		<xsd:sequence>
+			<xsd:element name="Dept" minOccurs="1" maxOccurs="unbounded">
+				<xsd:complexType>   
+					<xsd:sequence>
+						<xsd:element name="Emp" minOccurs="0" maxOccurs="unbounded">
+							<xsd:complexType>
+								<xsd:sequence>
+									<xsd:element name = "name" type = "xsd:string" />      
+								</xsd:sequence>		
+								<xsd:attribute name = "eno" type = "xsd:string" />								
+							</xsd:complexType>							
+						</xsd:element>
+						<xsd:element name="budget" minOccurs="0" type ="xsd:decimal" />
+					</xsd:sequence>
+					<xsd:attribute name = "dno" type = "xsd:string" />
+					<xsd:attribute name = "mgr" type = "xsd:string" />          					
+				</xsd:complexType>
+			</xsd:element>
+		</xsd:sequence>
+	</xsd:complexType>
+	<xsd:key name = "DeptKey">
+		<xsd:selector xpath = "Dept" />
+	<xsd:field xpath = "@dno" />
+	</xsd:key>
+	<xsd:key name = "EmpKey">
+		<xsd:selector xpath = "Dept/Emp" />
+	<xsd:field xpath = "@eno" />
+	</xsd:key>
+	<xsd:keyref name = "DeptMgrFK" refer = "EmpKey">
+		<xsd:selector xpath = "Dept" />
+		<xsd:field xpath = "@mgr" />
+	</xsd:keyref>
+</xsd:element>
+</xsd:schema>

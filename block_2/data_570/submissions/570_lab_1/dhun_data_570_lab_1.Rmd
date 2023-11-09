@@ -1,0 +1,237 @@
+---
+title: "DATA-570 Lab 1"
+author: "Dhun Sheth"
+date: "2023-10-19"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+``` {r question_1, include=FALSE}
+set.seed(23418)
+x <- sort(runif(30,0,3))
+y <- exp(x) + rnorm(length(x))
+plot(x, y)
+
+plot(x, y)
+linmod <- lm(y ~ x)
+abline(linmod, col="red", lwd=3)
+
+plot(x, y)
+localpoly1 <- loess(y~x, span=0.75)
+lines(x, predict(localpoly1), col="blue", lwd=3)
+
+plot(x, y)
+# # Green line "connect the dots" poly
+localpoly2 <- loess(y~x, span=0.1)
+# ## Warning in simpleLoess(y, x, w, span, degree = degree, parametric = parametric,
+# : span too small. fewer data values than degrees of freedom.
+# ## Warning in simpleLoess(y, x, w, span, degree = degree, parametric = parametric,
+# : pseudoinverse used at 0.11179
+# ## Warning in simpleLoess(y, x, w, span, degree = degree, parametric = parametric,
+# : neighborhood radius 0.16526
+# ## Warning in simpleLoess(y, x, w, span, degree = degree, parametric = parametric,
+# : reciprocal condition number 0
+# ## Warning in simpleLoess(y, x, w, span, degree = degree, parametric = parametric,
+# : There are other near singularities as well. 0.00079695
+lines(x, predict(localpoly2), col="green", lwd=3)
+
+# Training MSE
+trmse_red <- mean((y - predict(linmod))^2)
+trmse_blue <- mean((y - predict(localpoly1))^2)
+trmse_green <- mean((y - predict(localpoly2))^2)
+round(trmse_red, 2)
+round(trmse_blue, 2)
+round(trmse_green, 2)
+
+# Generate 10 new points and plot
+set.seed(41368)
+xnew <- sort(runif(10,0,3))
+ynew <- exp(xnew) + rnorm(length(xnew))
+plot(x, y)
+abline(linmod, col="red", lwd=3)
+lines(x, predict(localpoly1), col="blue", lwd=3)
+lines(x, predict(localpoly2), col="green", lwd=3)
+points(xnew, ynew, pch=17, col="gray", cex=1.5)
+
+# Test MSE
+temse_red <- mean( (ynew - predict(linmod, data.frame(x = xnew)))^2 )
+temse_blue <- mean( (ynew - predict(localpoly1, data.frame(x = xnew)))^2 )
+temse_green <- mean((ynew - predict(localpoly2, data.frame(x = xnew)))^2 )
+temse_red
+temse_blue
+temse_green
+
+```
+
+
+``` {r question_2, include=FALSE}
+library("class")
+
+set.seed(4623)
+x1 <- runif(100, -1, 1)
+x2 <- runif(100, -1, 1)
+plot(x1, x2)
+
+clas <- rep(NA, length(x2))
+
+for(i in 1:length(x2)){
+clas[i] <- sample( c(1, 2) , size = 1, prob =c(max(0, x2[i]), min(1 - x2[i], 1)))
+}
+
+# plot Bayes classifier boundry
+plot(x1, x2, col = clas, pch=16)
+abline(h = 0.5, col="blue")
+
+# Observed classification error
+table(x2 > 0.5, clas)
+
+# missclassification from the table by looking at the diagonal (in this particular case)
+sum(diag(table(x2 > 0.5, clas))) / length(x2)
+
+
+mod15 <- knn(cbind(x1,x2), cbind(x1, x2), clas, k=15, prob=TRUE)
+table(clas, mod15)
+
+# now misclassifications are on the off diagonal, so...
+(length(clas)-sum(diag(table(clas, mod15))))/length(clas)
+
+mod10 <- knn(cbind(x1,x2), cbind(x1, x2), clas, k=10, prob=TRUE)
+(length(clas)-sum(diag(table(clas, mod10))))/length(clas)
+
+mod1 <- knn(cbind(x1,x2), cbind(x1, x2), clas, k=1, prob=TRUE)
+(length(clas)-sum(diag(table(clas, mod1))))/length(clas)
+
+# Now let’s give a big grid of values for the testing set in order to eventually recreate the
+# contours shown in lecture.
+gridseq <- seq(-1, 1, 0.01)
+gridx1 <- rep(gridseq, each=length(gridseq))
+gridx2 <- rep(gridseq, length(gridseq))
+#We are putting a point at each 0.01 increment in both x1 and x2
+plot(gridx1, gridx2, pch=".")
+
+mod15 <- knn(cbind(x1,x2), cbind(gridx1, gridx2), clas, k=15, prob=TRUE)
+mod10 <- knn(cbind(x1,x2), cbind(gridx1, gridx2), clas, k=10, prob=TRUE)
+mod1 <- knn(cbind(x1,x2), cbind(gridx1, gridx2), clas, k=1, prob=TRUE)
+
+# KNN, k=15
+plot(x1, x2, col = clas, pch=16, main="KNN with k=15")
+abline(h = 0.5, col="blue")
+conprob <- attr(mod15, "prob")
+conpoints <- ifelse(mod15==1, conprob, 1-conprob)
+conmat <- matrix(conpoints, length(gridseq), length(gridseq))
+contour(gridseq, gridseq, t(conmat), levels=0.5, nlevels=1, add=TRUE, col="black", lwd = 2)
+
+# KNN, k=10
+plot(x1, x2, col = clas, pch=16, main="KNN with k=10")
+abline(h = 0.5, col="blue")
+conprob <- attr(mod10, "prob")
+conpoints <- ifelse(mod10==1, conprob, 1-conprob)
+conmat <- matrix(conpoints, length(gridseq), length(gridseq))
+contour(gridseq, gridseq, t(conmat), levels=0.5, nlevels=1, add=TRUE, col="black", lwd = 2)
+
+# KNN, k=1
+plot(x1, x2, col = clas, pch=16, main="KNN with k=1")
+abline(h = 0.5, col="blue")
+conprob <- attr(mod1, "prob")
+conpoints <- ifelse(mod1==1, conprob, 1-conprob)
+conmat <- matrix(conpoints, length(gridseq), length(gridseq))
+contour(gridseq, gridseq, t(conmat), levels=0.5, nlevels=1, add=TRUE, col="black", lwd = 2)
+
+```
+
+
+
+``` {r question_3, include=FALSE}
+# Simple linear regression
+data(cars)
+plot(cars)
+attach(cars)
+carlm <- lm(dist~speed)
+summary(carlm)
+
+abline(carlm)
+
+# simulations of different SLR regressions as seen in the lecture slides
+for(i in 1:100){
+x <- runif(30, 0,3)
+y <- -2*x+8 + rnorm(length(x))
+if(i==1) plot(x,y,type="n")
+abline(a=8, b=-2, lwd=3)
+simlm <- lm(y~x)
+abline(simlm, col="red")
+}
+
+for(i in 1:100){
+x <- runif(30, 0, 3)
+y <- runif(30, 2, 8)
+if(i==1) plot(x,y,type="n")
+simlm <- lm(y~x)
+abline(simlm, col="red")
+}
+
+
+
+```
+
+## Question 4
+Classification is primarily used when you need to categorize data into specific buckets. As an example, you could use classification to classify emails as spam or not. Here, the response variable is whether the email is spam or not. The predictor variables would be the fields used to determine if the email should be classified as spam or not, examples could include the sender email, subject line or attachments.
+
+Either prediction or inference could be the primary purpose. If you are exploring more efficient models in being able to classify emails as spam or not - then the primary purpose would be inference. However, if you are developing this model to implement in an application, then the primary goal would be prediction, as you want a low error rate in classification. 
+
+## Question 5
+Regression is typically used for numeric response variables. As an example, if we wanted to predict the price of a stock based on market cap, earnings, cash flow, and revenue, regression could be used were the response variable would be the stock price, and the predictor variables are market cap, earnings, cash flow, and revenue. 
+
+Because stock price is very difficult to model because it is affected by numerous factors not included in the above example, this would primarily be done for inference, however if there is a particular stock for which this method is accurate using test data, then prediction can be argued to be of more interest than inference. 
+
+## Question 6
+I would expect a smaller value for K because as K gets larger, the boundary becomes less flexible. For K = n, where n is the total number of observations, the boundary is a straight line and not very flexible, therefore, if the bounder is very non-linear, I expect the boundary to be more flexible indicating a small K.
+
+## Question 7
+### Part A
+
+```{r question_7_a}
+
+x <- rbind(c(0, 2, 0),c(-2, -1, 0), c(-1, 0, 1), c(0, 1, 3), c(1, 1, 1), c(0, 3, 0))
+origin <- matrix(0, nrow=6, ncol=3)
+
+eu_distance <- matrix(sqrt(rowSums((x-origin)**2)), ncol=1)
+
+print(eu_distance)
+
+
+
+```
+
+### Part B
+```{r question_7_b}
+
+smallest_eu_distance <- min(eu_distance)
+
+print(smallest_eu_distance)
+
+```
+
+Because K=1, it will classify the new observation the same class as its nearest neighbor. The smallest Euclidean distance is `r smallest_eu_distance` which occurs for the 3rd data point which is classified as "Yellow" - so the new observation would be classified as "Yellow."
+
+
+### Part C
+``` {r question_7_c}
+
+print(eu_distance)
+
+```
+
+Based on the Euclidean distances calculated in Part A, for K=3, we can see the 3 smallest distances are:  
+
+"1.414214" -> Class: "Yellow"  
+"1.732051" -> Class: "Yellow"   
+"2.000000" -> Class: "Blue"   
+
+Thus, the origin can be of class "Blue" which has a probability of 1/3 or class "Yellow" which has a probability 2/3.   
+So the KNN classification would classify the origin as "Yellow".

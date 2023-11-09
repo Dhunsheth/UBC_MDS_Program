@@ -1,0 +1,66 @@
+<?xml version = "1.0"?>
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+<xsd:element name = "Orders">
+	<xsd:complexType>
+		<xsd:sequence>
+			<xsd:element name="Order" minOccurs="0" maxOccurs="unbounded">
+				<xsd:complexType>					
+					<xsd:sequence>					
+						<xsd:element name="LineItem" minOccurs="1" maxOccurs="unbounded">
+							<xsd:complexType>								
+								<xsd:sequence>									
+									<xsd:element name = "quantity" type = "xsd:integer" minOccurs="1" />
+									<xsd:element name = "price" type = "xsd:decimal" minOccurs="1" />									
+								</xsd:sequence>
+								<xsd:attribute name="productId" type="xsd:string" use="required" />
+							</xsd:complexType>
+						</xsd:element>							
+						<xsd:element name = "totalAmount" type = "xsd:decimal" minOccurs="0" />
+					</xsd:sequence>
+					<xsd:attribute name="orderId" type="xsd:string" use="required" />
+					<xsd:attribute name="customerId" type="xsd:string"  />
+				</xsd:complexType>
+			</xsd:element>							
+			<xsd:element name="Customer" minOccurs="1" maxOccurs="unbounded">
+				<xsd:complexType>					
+					<xsd:sequence>					
+						<xsd:element name = "cname" type = "xsd:string" minOccurs="1" />
+						<xsd:element name = "address" type = "xsd:string" minOccurs="0"/>									
+					</xsd:sequence>
+					<xsd:attribute name="customerId" type="xsd:string" use="required" />
+				</xsd:complexType>
+			</xsd:element>									
+			<xsd:element name="Product" minOccurs="1" maxOccurs="unbounded">
+				<xsd:complexType>					
+					<xsd:sequence>					
+						<xsd:element name = "pname" type = "xsd:string" minOccurs="1" />
+						<xsd:element name = "category" type = "xsd:string" minOccurs="1" />	
+						<xsd:element name = "price" type = "xsd:decimal" minOccurs="1" />								
+					</xsd:sequence>
+					<xsd:attribute name="productId" type="xsd:string" use="required" />
+				</xsd:complexType>
+			</xsd:element>										
+		</xsd:sequence>
+    </xsd:complexType>
+	<xsd:key name = "OrderKey">
+		<xsd:selector xpath = "Order" />
+		<xsd:field xpath = "@orderId" />
+	</xsd:key>
+	<xsd:key name = "CustomerKey">
+		<xsd:selector xpath = "Customer" />
+		<xsd:field xpath = "@customerId" />
+	</xsd:key>
+	<xsd:key name = "ProductKey">
+		<xsd:selector xpath = "Product" />
+		<xsd:field xpath = "@productId" />
+	</xsd:key>
+	<xsd:keyref name = "OrderCustomerFK" refer = "CustomerKey">
+		<xsd:selector xpath = "Order" />
+		<xsd:field xpath = "@customerId" />
+	</xsd:keyref>
+	<xsd:keyref name = "LineitemProductFK" refer = "ProductKey">
+		<xsd:selector xpath = "Order/LineItem" />
+		<xsd:field xpath = "@productId" />
+	</xsd:keyref>
+</xsd:element>
+</xsd:schema>

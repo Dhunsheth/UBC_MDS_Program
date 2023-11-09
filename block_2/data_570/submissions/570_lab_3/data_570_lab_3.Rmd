@@ -1,0 +1,122 @@
+---
+title: "data_570_lab_3"
+author: "Dhun Sheth"
+date: "2023-11-02"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ISLR)
+
+```
+
+```{r question_1, include=FALSE}
+
+attach(Auto)
+head(Auto)
+
+fit1 <- lm(mpg~horsepower)
+summary(fit1)
+
+
+```
+
+```{r question_2, include=FALSE}
+
+plot(mpg~horsepower, data=Auto)
+abline(fit1, col="red")
+
+par(mfrow=c(2,2))
+plot(fit1)
+
+which(rstudent(fit1)>3)
+order(cooks.distance(fit1), decreasing = TRUE)[1:5]
+
+```
+
+```{r question_3, include=FALSE}
+
+pairs(Auto)
+
+cor(Auto[,names(Auto)!="name"])
+
+require(car)
+lm.fit <- lm(mpg ~ .-name, data=Auto)
+summary(lm.fit)
+vif(lm.fit)
+
+
+```
+
+## Question 4
+
+### Part 1
+
+```{r question_4_part_1, include=TRUE}
+
+library(DAAG)
+x=roller$weight
+y=roller$depression
+
+plot(depression~weight, data=roller)
+fit <- lm(depression~weight, data=roller)
+abline(fit, col="red")
+
+```
+
+### Part 2
+
+```{r question_4_part_2, include=TRUE}
+
+par(mfrow=c(2,2))
+plot(fit)
+
+```
+
+## Question 5
+```{r question_5, include=TRUE}
+
+bp=read.table("bloodpress.txt", header = TRUE, sep = "" )
+
+bp_fit <- lm(BP~., data = bp)
+pairs(bp)
+cor(bp)
+print(vif(bp_fit))
+
+```
+
+## Question 6
+```{r question_6, include=TRUE}
+
+x <- rnorm(100)
+lamda <- exp(1-x)
+n <- rpois(100, lamda)
+
+pois_glm <- glm(n~x, family = poisson)
+
+print(coef(pois_glm))
+
+plot(n~x)
+curve(exp(coef(pois_glm)[[1]]+coef(pois_glm)[[2]]*x), add=TRUE,col="red")
+
+```
+
+## Question 7
+```{r question_7, include=TRUE}
+
+x <- rnorm(100)
+p <- (exp(1-x))/(1+exp(1-x))
+n <- rbinom(100, 1, prob=p)
+
+binom_glm <- glm(n~x, family = binomial)
+
+print(coef(binom_glm))
+
+# plot(n~x)
+# newest <- -3:3
+# lines(newest, predict(binom_glm,
+# newdata=data.frame(x = newest), type = "response"))
+
+```
+
