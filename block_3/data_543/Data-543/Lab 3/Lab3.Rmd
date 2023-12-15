@@ -1,0 +1,165 @@
+---
+title: "Data 543 Lab 3"
+author: "Emelie"
+date: "Nov 29, 2023"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Paper Planes
+
+In Lecture 5 we will introduce simple comparative experimental designs. For today's lab we will be considering the `"paperPlanes.csv"` dataset.  This data contains the flying distance (in feet) for two designs of paper airplanes: a design on blue paper (column 1), and a design on green paper (column 2). 
+```{r}
+paper = read.csv("paperPlanes.csv", header=TRUE)
+```
+
+Let's create some R objects to be used for further analysis:
+
+```{r}
+blue = paper$Blue
+green = paper$Green
+n.green = length(green); n.blue = length(blue); c(n.green, n.blue)
+```
+
+Check for missing values:
+
+```{r}
+sum(is.na(blue))
+sum(is.na(green))
+
+#To see which value in the blue data is missing
+which(is.na(blue))
+```
+We find the blue paper data has one missing value, and after digging further we find the 20th observation is the missing value. We will keep this in mind for later.
+
+
+We can compare the two distributions using histograms and boxplots using the following code: (note that `alpha.f` controls the level of transparency)
+```{r}
+#Print the next two plots side by side:
+par(mfrow=c(1,2))
+
+# histogram
+hist(green, main="Histograms", col=adjustcolor("Green", alpha.f= 0.4), 
+     xlab="Distance",  xlim=c(0,25), ylim=c(0,7), breaks=seq(0,25, 3) )
+hist(blue, breaks=seq(0,25, 3), col=adjustcolor("Blue", alpha.f= 0.4), 
+     xlab="Distance", add=TRUE)
+legend("topright", fill=c(adjustcolor("Green", 0.4), adjustcolor("Blue", 0.4)),
+       legend=c("green", "blue"))
+
+# boxplot
+boxplot( paper, main="boxplot" )
+```
+
+
+
+
+# Completely Randomized Design (CRD) - Balanced
+In a balanced design we assume that each treatment has the same number of replications $r$. Now we observe a response $y_{ij}$ for the $j^{th}$ unit receiving treatment $i$, and write
+$$Y_{ij} = \mu + \tau_i + R_{ij}$$
+for $i = 1, ..., t$; $j = 1, ..., r$, $R_{ij} \sim N(0,\sigma^2)$ and where it is important to emphasize that  $\tau_i$ is the effect of treatment $i$ \textbf{relative to the overall mean $\mu$}.
+Hence, each observation is explained as a grand mean plus an effect of its group (i.e.
+treatment) plus a random deviation (error) $R_{ij}$.
+
+The model outlined above will allow us to make inferences regarding the difference between treatments.  In the simplest case of two treatments, we may ask if treatment A differs from treatment B.  In that case we may form the hypothesis:
+$$H_0: \tau_1=\tau_2$$   
+$$H_1:  \tau_1=\tau_2$$
+or equivalently
+
+$$H_0: \tau_1-\tau_2=0$$
+$$H_1:  \tau_1-\tau_2\neq 0$$
+
+
+# Example - Paper Planes
+
+Again we consider the paper planes data. Here we will compare the two paper airplane designs. We will assume one factor (design) with two levels (design 1 = blue, design 2 = green).  
+
+Notice that the data is unbalanced (there are more observations in the `Green` treatment than in the `Blue` due to a missing value).  To make this balanced, I will simply remove the 20th observation so that there are 19 replications of each treatment.
+```{r}
+paper19 = paper[-20,]
+# lets redefine our variables: 
+blue = paper19$Blue
+green = paper19$Green
+n.green = length(green); n.blue = length(blue); c(n.green, n.blue)
+```
+
+Our model is therefore:
+$$Y_{ij} = \mu + \tau_i + R_{ij} \qquad i = 1, 2, \quad j = 1, ..., 19 $$
+where:
+
+- $y_{ij}$ is the distance that plane $j$ flies when using design $i$. 
+
+- $\mu$: is the mean response (distance) across our two treatment groups.
+
+- $\tau_1, \tau_2$: represent the treatment effect which is the change from the overall average response when using the treatment.  
+
+- $R_{ij} \sim N(0,\sigma^2)$: experimental variability (error), which is equal variance across groups.
+
+We also apply the constraint $n_1\tau_1 + n_2\tau_2 = 0$ for the interpretation of parameters. 
+
+The following code supplies the calculations for parameter estimates:
+```{r}
+# The overall sample distance  is 
+mu.hat = mean(c(blue,green))
+round(mu.hat,2)
+
+# The estimated treatment effect for the blue design is 
+tau.blue = mean(blue) - mu.hat
+round(tau.blue,2)
+
+# The estimated treatment effect for the green design is 
+tau.green = mean(green) - mu.hat
+round(tau.green,2)
+
+# The estimated difference in treatment effects  is 
+round(c( tau.blue - tau.green ),3)
+# alternatively:
+round(mean(blue) - mean(green),3)
+```
+
+To find confidence intervals we need to calculate the pooled variance.  The sample variance within treatment $i$ is 
+$$\widehat{\sigma}_i^2 = \frac{1}{n_i - 1}\sum\limits_{j=1}^{n_i} (y_{ij} - \widehat{\mu} - \widehat{\tau}_i)^2$$ $$= \frac{1}{n_i - 1}\sum\limits_{j=1}^{n_i} (y_{ij} - \overline{y}_{i\cdot})^2$$ 
+and the pooled variance is
+$$\widehat{\sigma}^2 = \frac{1}{n_1 + n_2 - 2}\sum\limits_{i=1}^2 \sum\limits_{j=1}^{n_i} (y_{ij} - \widehat{\mu} - \widehat{\tau}_i)^2$$ $$= \frac{(n_1 - 1)\widehat{\sigma}_1^2 + (n_2 - 1)\widehat{\sigma}_2^2}{n_1 + n_2 - 2}$$
+
+
+```{r}
+s2.hat.blue  = var(blue)
+s2.hat.green = var(green)
+n  = n.green + n.blue
+s2.hat = ((n.green-1)*s2.hat.green + (n.blue-1)*s2.hat.blue)/( n - 2 )
+round(s2.hat,2)
+```
+
+A 95% confidence interval is then
+```{r}
+alpha = 0.05
+diff.tau.hat = tau.blue - tau.green
+se.diff.tau  = sqrt(s2.hat*(1/n.green + 1/n.blue))
+cval = qt(1-alpha/2, df=n.green + n.blue - 2)
+cval 
+round( diff.tau.hat + c(-1,+1)*cval*se.diff.tau, 2)
+```
+A 95% confidence interval is for the difference in treatment effects `r round( diff.tau.hat + c(-1,+1)*cval*se.diff.tau, 2)`.
+
+
+Based on the confidence interval are the flying distances between the green and blue plane designs any different? 
+
+Here we are testing $H_0: \tau_1 - \tau_2 = 0$, and there is evidence to reject the null hypothesis at the 95\% confidence level because our 95\% confidence interval does not cover 0.
+
+While the above question could be answered using the 95\% CI, we could also perform the statistical test for 
+$$H_0 : \tau_1-\tau_2=0  \quad \quad  \text{vs.} \quad \quad H_1:  \tau_1-\tau_2\neq 0 $$ or equivalently
+
+$$H_0: \mu_g-\mu_b=0 \quad \quad \text{vs.} \quad \quad H_1:  \mu_g-\mu_b\neq 0$$
+
+using the `t.test` function in R (also note the confidence interval appears in the output)
+```{r}
+t.test(blue, green, var.equal = T)
+```
+
+Since the $p$-value is less than the significance level of 0.05, we have enough evidence to reject the null hypothesis. That is to say, there is statistically significant evidence that the average flying distance between the two designs differ.
+
+
+

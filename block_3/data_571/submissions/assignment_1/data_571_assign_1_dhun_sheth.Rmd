@@ -1,0 +1,149 @@
+---
+title: "<center>DATA-571 Assignment 1</center>"
+author: "<center>Dhun Sheth</center>"
+date: "<center>2023-11-22</center>"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(bootstrap)
+```
+
+## Question 1
+I would choose the Classification Tree model. 
+
+Initially, the Classification Tree seems worse because it misclassified 
+crown fires as surface fires (and surface fires as crown fires) more often than
+the kNN model. However, when you consider the LOOCV results, the kNN model 
+misclassifies fires more often than the Classification Tree model. Because 
+LOOCV is very close to using the full sample, this indicates leaving certain 
+observations out of the sample affects the kNN model much more significantly
+than it does to the Classification Tree model.
+
+In addition, LOOCV is an estimate for the long run performance of the modeling
+process, and based on the LOOCV results, the Classification Tree model performs
+better in the long run when compared to the kNN model.
+
+## Question 2
+The first number, "sum(contain_var_norm)" represents the number of times, 
+out of 1000 runs, the variance was within the confidence interval (generated
+under the assumptions of normality). It can be seen, for the normal assumption, 
+the variance was within the interval for 997 out of 1000 runs.   
+
+**Observed confidence level of the 95% confidence interval that is based 
+on normality:** 997/1000 = 99.7%   
+
+Similarly, the second number, "sum(contain_var_boot)", represents the number 
+of times the variance was within the confidence interval (generated without the
+normality assumption via non-parametric bootstrap method). It can be seen the 
+variance was within the interval for 941 out of 1000 runs.   
+
+  
+**Observed confidence level of the 95% bootstrap-based confidence 
+interval:** 941/1000 = 94.1%
+
+
+Although the confidence level observed based on the normal confidence level is higher, 
+the CI was calculated under an incorrect assumption of normality, so the calculated CI's are 
+not accurate, leading to an inflated observed confidence level. In addition, comparing some of the CI's
+generated under the normal method vs. the bootstrap method, we can see the CI's are tighter under the 
+bootstrap method. 
+
+The bootstrap method does not make any normality assumptions and the observed confidence level is much 
+closer to the estimated confidence level of 95% so I would trust and use that method more.
+
+
+## Question 3
+
+```{r question_3}
+
+set.seed(2023)
+theoritical <- boot_max_ci <- matrix(NA, nrow=1000, ncol=2)
+for(i in 1:1000){
+  dumx <- runif(25)
+  dumboot <- bootstrap(dumx, 1000, max)
+  boot_max_ci[i, 1] <- quantile(dumboot$thetastar, 0.025)
+  boot_max_ci[i, 2] <- quantile(dumboot$thetastar, 0.975)
+  theoritical[i,1] <- max(dumx)
+  theoritical[i,2] <- max(dumx)/(0.05^(1/25))
+}
+
+contain_max_theor <- contain_max_boot <- rep(NA, 1000)
+for(i in 1:1000){
+  contain_max_theor[i] <- theoritical[i, 1] <= 1 & 1 <= theoritical[i, 2]
+  contain_max_boot[i] <- boot_max_ci[i, 1] <= 1 & 1 <= boot_max_ci[i, 2]
+}
+
+
+```
+
+
+Bootstrap confidence level: `r sum(contain_max_boot)/10`%  
+  
+Theoretical confidence level: `r sum(contain_max_theor)/10`%    
+  
+For a sample generated from a uniform distribution from [0,1], it can be seen 
+the bootstrapped CI does not capture the upper bound at all - indicated
+by the 0% confidence level.  
+
+However, the CI's calculated based on the theory do capture the upper 
+bound of "1" in about 95.6% of the runs. 
+  
+This is somewhat expected to occur because bootstrapping fails when non-smooth 
+functions, such as maximums, are used. 
+
+
+## Question 4
+### Part A
+
+```{r, question_4_part_a}
+
+set.seed(32531)
+X <- matrix(rnorm(100000), nrow=50, ncol=2000)
+Y <- rnorm(50)
+
+
+top10 <- which(rank(cor(cbind(Y, X))[-1,1]) %in% 1:10)
+cvlm <- list()
+msecvW <- NA
+Xtop <- data.frame(X[, top10])
+for(i in 1:nrow(X)){
+  cvY <- Y[-i]
+  cvlm[[i]] <- lm(cvY ~., data=Xtop[-i,])
+  msecvW[i] <- (predict(cvlm[[i]], newdata=Xtop[i,]) - Y[i])^2
+}
+
+mean(msecvW)
+```
+
+LOOCV estimate of MSE is `r mean(msecvW)`
+
+### Part B
+
+True MSE is the variance in the response variable, Y, which is `r var(Y)`
+
+Yes, I would be concerned because the LOOCV method estimates the long run MSE 
+and because we screened the variables outside of the LOOCV process, it
+was not able to capture this when estimating the long run MSE and so I would 
+expect the LOOCV MSE estimate to be underestimated. This is seen when the LOOCV MSE is compared to the true MSE.
+
+### Part C
+```{r, question_4_part_c}
+
+cvlm <- list()
+msecvR <- NA
+for(i in 1:nrow(X)){
+  cvtop10 <- which(rank(cor(cbind(Y[-i], X[-i,]))[-1,1]) %in% 1:10)
+  cvXtop10 <- data.frame(X[, cvtop10])
+  cvY <- Y[-i]
+  cvlm[[i]] <- lm(cvY ~., data=cvXtop10[-i,])
+  msecvR[i] <- (predict(cvlm[[i]], newdata=cvXtop10[i,]) - Y[i])^2
+}
+mean(msecvR)
+```
+LOOCV estimate of MSE is `r mean(msecvR)`  
+
+As expected, after moving the variable screening inside the LOOCV process, the 
+estimated MSE is larger.
+

@@ -1,0 +1,18 @@
+#mathfunc.py
+def add(a,b):
+      return a+b
+def sub(a,b): 
+      return a-b
+def mul(a,b): 
+      return a*b
+def div(a,b):
+      return a/b
+
+
+#jupyter notebook
+import mathfunc
+
+print(mathfunc.add(20,10))
+print(mathfunc.sub(20,10))
+print(mathfunc.mul(20,10))
+print(mathfunc.div(20,10))

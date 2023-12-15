@@ -1,0 +1,373 @@
+---
+title: "Lab 1"
+author: "Jeff"
+date: "11/21/2023"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Training-testing
+Let's start our first lab with some discussion surrounding using a training-testing framework for estimating the true (long-run) MSE of a model(ing process).
+
+Recall from our discussion in class the general rule of thumb...
+
+ - The smaller the training set, the larger the bias (specifically, expected overestimation of the MSE)
+ - The smaller the testing set, the larger the variance
+
+First, we simulate 1000 data sets of sample size 200, and we'll plot the first data set as an illustration...
+
+```{r}
+set.seed(4314876)
+x <- runif(200000)
+y <- 3*x + rnorm(200000)
+xsamps <- split(x, ceiling(seq_along(x) / 200))
+ysamps <- split(y, ceiling(seq_along(y) / 200))
+plot(ysamps[[1]]~xsamps[[1]])
+```
+
+Now, we'll setup (in a super inefficient, non-generalizable code sort of way) 50-50, 80-20, and 20-80 training-testing splits for the 1000 data sets, and fit a linear model on the training data, then estimate the MSE using the test set and store that for future reference. 
+
+```{r}
+###50-50 train-test
+set.seed(3524362)
+allmsett50 <- NA
+for(j in 1:1000){
+  trind <- sample(1:200, 100)
+  xtr <- xsamps[[j]][trind]
+  ytr <- ysamps[[j]][trind]
+  trlm <- lm(ytr~xtr)
+  allmsett50[j] <- sum((predict(trlm, newdata=data.frame(xtr=xsamps[[j]][-trind])) - ysamps[[j]][-trind])^2)/100
+}
+
+###80-20 train-test
+set.seed(3524362)
+allmsett80 <- NA
+for(j in 1:1000){
+  trind <- sample(1:200, 160)
+  xtr <- xsamps[[j]][trind]
+  ytr <- ysamps[[j]][trind]
+  trlm <- lm(ytr~xtr)
+  allmsett80[j] <- sum((predict(trlm, newdata=data.frame(xtr=xsamps[[j]][-trind])) - ysamps[[j]][-trind])^2)/40
+}
+
+hist(allmsett80)
+
+###20-80 train-test
+set.seed(3524362)
+allmsett20 <- NA
+for(j in 1:1000){
+  trind <- sample(1:200, 40)
+  xtr <- xsamps[[j]][trind]
+  ytr <- ysamps[[j]][trind]
+  trlm <- lm(ytr~xtr)
+  allmsett20[j] <- sum((predict(trlm, newdata=data.frame(xtr=xsamps[[j]][-trind])) - ysamps[[j]][-trind])^2)/160
+}
+```
+
+At this point, we have 1000 estimates of the MSE from each framework. So, we can look at a visualization via histograms with the same axes. We'll plot them in increasing order of training set size
+
+```{r}
+par(mfrow=c(3,1))
+hist(allmsett20, xlim=c(0,2))
+hist(allmsett50, xlim=c(0,2))
+hist(allmsett80, xlim=c(0,2))
+```
+
+From the visualization, it's relatively clear that the spread of the MSE estimates are increasing as the training set size increases (and testing set size decreases). We can double check this by computing the variance of the estimates...
+
+```{r}
+var(allmsett20)
+var(allmsett50)
+var(allmsett80)
+```
+
+Now, for the bias we need to consider what the true MSE actually is here. As discussed in lecture, the true MSE of our modelling process here is 1 --- the variance of our random normal error term. That means an unbiased estimator for the true MSE should be centred at 1. Visually from the plots, this is hard to tell...but we can compute the sample mean for our different frameworks
+
+```{r}
+mean(allmsett20)
+mean(allmsett50)
+mean(allmsett80)
+```
+
+In this case we can see that the bias is actually decreasing as our training set size increases! 
+
+## Cross-validation
+It's relatively easy to set-up leave-one-out cross-validation yourself for any analysis. Here we can do it for the simple linear model...
+
+```{r}
+data(cars)
+attach(cars)
+cvlm <- list()
+msecv <- NA
+for(i in 1:nrow(cars)){
+  cvspeed <- speed[-i]
+  cvdist <- dist[-i]
+  cvlm[[i]] <- lm(cvdist ~ cvspeed)
+  msecv[i] <- (predict(cvlm[[i]], newdata=data.frame(cvspeed=speed[i])) - dist[i])^2
+}
+mean(msecv)
+```
+Which can be compared to the MSE for the regular model fit...
+```{r}
+lmfull <- lm(dist~speed)
+mean((predict(lmfull)-dist)^2)
+```
+As expected, the MSE for the model fitted on the whole data is lower than that which is predicted using cross validation. However, note that the above is actually a biased (underguessing) estimate of the MSE. This shouldn't be surprising given your knowledge of training MSEs --- they always underestimate the MSE! The unbiased form is divided by `n-2` rather than `n`. So in this case...
+
+```{r}
+sum((predict(lmfull)-dist)^2)/48
+```
+
+Many analyses have CV built in. Here we can make use of that to choose the number of nearest neighbours for KNN regression.
+
+
+```{r}
+library(FNN)
+?knn.reg # note that knn.reg automatically uses CV in reporting
+kr <- list()
+predmse <- NA
+for(i in 1:49){
+  kr[[i]] <- knn.reg(speed, test=NULL, dist, k=i)
+  predmse[i] <- kr[[i]]$PRESS/nrow(cars)
+}
+plot(predmse, type="l", lwd=3, col="red")
+which.min(predmse)
+```
+
+```{r}
+plot(dist~speed)
+seqx <- seq(from=0, to=30, by=0.01)
+knnr <- knn.reg(speed, y=dist, test=matrix(seqx, ncol=1),  k=2) 
+lines(seqx, knnr$pred, col="green", lwd=1)
+```
+
+## Revisiting variance of CV
+I think it may be worthwhile revisiting what I've coined the most difficult concept of my modules: that the 5-fold CV estimate of the MSE has less variance than the LOOCV estimate of the MSE.
+
+To make the code easy, we'll use regression trees since you can control the number of folds with the `cv.tree` function --- don't worry if we haven't reviewed trees yet, you can assume any model here really. We'll need to simulate an example so that we can repeatedly generate new data --- this is necessary in order to investigate the type of variance we're discussing: how much a model (or estimate) changes when a new sample is taken.
+
+```{r}
+set.seed(21341)
+x <- runif(100, 0, 10)
+y <- 5 + 2*x + rnorm(100)
+plot(y~x)
+```
+
+```{r}
+library(tree)
+simtree <- tree(y~x)
+loocv_simtree <- cv.tree(simtree, K=100)
+loocv_RSS <- loocv_simtree$dev[1]
+```
+
+Since LOOCV is deterministic, we only need to compute it once for any data set. For the purposes of what we want to discuss though, 5-fold CV will have to be run several times (with the error saved). Off we go...
+
+```{r}
+cv5_RSS <- NA
+for(i in 1:500){
+  cv5_simtree <- cv.tree(simtree, K=5)
+  cv5_RSS[i] <- cv5_simtree$dev[1]
+}
+```
+
+Now, we'll give a histogram of the 5-fold estimates, and add the LOOCV estimate in red. BUT: THIS IS NOT ILLUSTRATING VARIANCE!!! WE ARE STILL ONLY LOOKING AT ONE DATA SET :)
+
+```{r}
+hist(cv5_RSS)
+abline(v=loocv_RSS, col="red")
+```
+
+We don't know the true MSE here for this nonparametric model fit to this type of data, but it's worth noting that the center of the 5-fold estimates does appear above the LOOCV estimate (aka, more potential overestimation).
+
+Now, let's actually get to the variance part. We need to simulate a whole bunch of data, and we'll fit both LOOCV and 5-fold-CV once each time...
+
+```{r}
+set.seed(21)
+loocv1k <- cv51k <- NA 
+for(i in 1:500){
+  x <- runif(200, 0, 10)
+  y <- 5 + 2*x + rnorm(200)
+  simtree <- tree(y~x)
+  loofit <- cv.tree(simtree, K=200)
+  loocv1k[i] <- loofit$dev[1]
+  cv5fit <- cv.tree(simtree, K=5)
+  cv51k[i] <- cv5fit$dev[1]
+}
+```
+
+Now, we will plot both separately, but on the same x-limits, for easier viewing...
+
+```{r}
+par(mfrow=c(2,1))
+xlims <- min(c(loocv1k, cv51k))-100
+xlims[2] <- max(c(loocv1k, cv51k))+100
+hist(loocv1k, xlim=xlims)
+hist(cv51k, xlim=xlims)
+```
+
+Or, obviously, literally compute the variance of the estimates...
+
+```{r}
+var(loocv1k)
+var(cv51k)
+```
+
+## Jackknife
+The jackknife can be used to provide estimates of the bias and standard error of estimators. We will focus on the leave-one-out jackknife, and start by the traditional estimator of population mean: the sample mean!
+```{r}
+set.seed(5141)
+x <- rnorm(25, 0, 10)
+xbarfull <- mean(x)
+xbarjack <- NA
+for(i in 1:25) xbarjack[i] <- mean(x[-i])
+```
+
+Now we can make use of the jackknife bias estimate:
+
+```{r}
+(25-1)*(mean(xbarjack) - mean(x))
+```
+As noted in class, this should (by mathematical definition) be 0 in the case of the sample mean. Depending on computational rounding, we may get some non-zero values at a distant decimal place. Here we can calculate the estimate of the SE:
+
+```{r}
+sqrt((25-1)/(25)*sum((xbarjack-mean(xbarjack))^2))
+```
+Which turns out to be fairly close to the known value.
+
+For simple estimators, the `bootstrap` library can implement the jackknife very easily.
+```{r eval=FALSE}
+install.packages(bootstrap)
+```
+
+```{r}
+library(bootstrap)
+set.seed(5141)
+x <- rnorm(25, 0, 10)
+jfit <- jackknife(x, mean)
+jfit$jack.bias
+jfit$jack.se
+```
+
+For modelling purposes, the `jackknife` function becomes a bit more tedious to use (see help file for a bivariate example), so we'll return to a manual implementation for simple linear regression. Here we setup the code for the example provided in lecture:
+
+```{r}
+set.seed(311532)
+x <- runif(30, 0, 1)
+y <- 2*x + rnorm(30, sd=0.25)
+fullfit <- lm(y~x)
+jlist <- matrix(NA, nrow=30, ncol=2)
+for(i in 1:length(x)){
+  jlist[i,] <- lm(y[-i]~x[-i])$coef
+}
+```
+
+Now we can compute the estimated bias and SE for $\hat \beta_0$
+```{r}
+(30-1)*(mean(jlist[,1])-fullfit$coefficients[1])
+sqrt(((30-1)/30)*sum((jlist[,1]-mean(jlist[,1]))^2))
+```
+versus the true SE of $\hat \beta_0$, which with a bit of work can be found as
+```{r}
+.25*sqrt(1/30+(.5^2)/(sum((x-mean(x))^2)))
+```
+
+Now the estimated bias and SE for $\hat \beta_1$
+```{r}
+(30-1)*(mean(jlist[,2])-fullfit$coefficients[2])
+sqrt(((30-1)/30)*sum((jlist[,2]-mean(jlist[,2]))^2))
+```
+versus the true SE of $\hat \beta_1$
+```{r}
+.25/sqrt(sum((x-mean(x))^2))
+```
+
+## Bootstrap
+Here we will recreate the simulation provided in lecture for the nonparametric bootstrap
+
+```{r}
+set.seed(311532)
+x <- runif(30, 0, 1)
+y <- 2*x + rnorm(30, sd=0.25)
+mod1 <- lm(y~x)
+newx <- list()
+newy <- list()
+modnew <- list()
+coefs <- NA
+for(i in 1:1000){
+  #newx[[i]] <- runif(30, 0, 1)
+  newx[[i]] <- x
+  newy[[i]] <- 2*newx[[i]] + rnorm(30, sd=0.25)
+  modnew[[i]] <- lm(newy[[i]]~newx[[i]])
+  coefs[i] <- modnew[[i]]$coefficients[2]
+}
+set.seed(35134)
+newboots <- list()
+bootsmod <- list()
+bootcoef <- NA
+xy <- cbind(x,y)
+for(i in 1:1000){
+  newboots[[i]] <- xy[sample(1:30, 30, replace=TRUE),]
+  bootsmod[[i]] <- lm(newboots[[i]][,2]~newboots[[i]][,1])
+  bootcoef[i] <- bootsmod[[i]]$coefficient[2]
+}
+
+summary(mod1)$coefficients
+sd(coefs)
+sd(bootcoef)
+```
+The theoretical standard error is 0.13735, so our hope is that all three values should be close to that. `sd(coefs)` (aside from the theoretical truth) would be a gold-standard approach for finding that value --- but it is of course essentially impossible in practice to repeatedly gather new data. `summary(mod1)$coefficients` is based on the inferential linear regression assumptions (iid normal error, etc) and only one model fit. `sd(bootcoef)` is the bootstrap estimator based on resampling (with replacement) from the original sample.
+
+As in class, we can push further by using the observed bootstrap estimators in `bootcoef` as an empirical distribution. First, we looked at the histogram
+```{r}
+hist(bootcoef)
+```
+
+The simplest bootstrap confidence interval, often called Efron intervals (after the bootstrap founder Bradley Efron), simply pull the relevant percentiles of the observed bootstrap estimates.
+
+So for example, for an approx 90% CI we would want the 5th and 95th percentiles of the observed estimates...
+```{r}
+quantile(bootcoef, 0.05)
+quantile(bootcoef, 0.95)
+```
+
+How about a 10% CI? Well, that would need the 45th and 55th percentiles
+```{r}
+quantile(bootcoef, 0.45)
+quantile(bootcoef, 0.55)
+```
+It's worth noting that the resulting interval in this particular case doesn't actually include the true theoretical value (2.00). That's not surprising since only approx 10% of the time will an interval constructed in the above manner actually include the true parameter value.
+
+
+
+## More Bootstrap
+
+A question from the 2018 MDS cohort: ``Aren't bootstrap estimates normally distributed? The textbook shows this normal looking histogram (on page 189)...''
+
+No, bootstrap estimates are not (necessarily) normally distributed. If this were universally true, they would be useless! 
+
+Bootstrap estimates should be sampled from approximately the distribution of the estimator, which can be any arbitrary distribution. There are caveats here: bootstrap fails for non-smooth functions of the distribution (traditional examples are maximums, minimums, etc).
+
+Let's use an example that you might be vaguely familiar with. If X is normally distributed (with known $\mu$ and $\sigma^2$), then $ns^2/\sigma^2$ is chi-squared distributed with $n$ degrees of freedom. So if X is standard normal with a sample of size 20 we see:
+```{r}
+curve(dchisq(x, 30), from=0, to=60, xlab="ns^2/sigma^2")
+```
+
+Since $n$ and $\sigma^2$ are constants, the key is to consider the shape of the above distribution. It is characteristically right-skewed (and in fact is truncated at zero since variance is strictly non-negative). Now then, let's generate a sample of size 30 and carry out a bootstrap...
+
+```{r}
+set.seed(111)
+x <- rnorm(30)
+library(bootstrap)
+varboot <- bootstrap(x, 1000, var)
+```
+Now let's take a peek at the histogram, transformed in the same fashion (that is, multiplied by $n$ and divided by $\sigma^2$)...
+
+```{r}
+hist(30*varboot$thetastar, freq=FALSE)
+curve(dchisq(x, 30), add=TRUE)
+```
+
+So that matches pretty well!

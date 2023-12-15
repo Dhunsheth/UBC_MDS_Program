@@ -1,0 +1,136 @@
+---
+title: "Quiz 2 - 32376881"
+author: "Dhun Sheth"
+date: "2023-12-13"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(HMM)
+```
+
+### Question 1 
+
+Probability would be 0.6 because of the Markov property (MC is memory less and next state only depends on current state).
+
+### Question 2
+```{r}
+
+P <- matrix(c(0, .5, 0.5,
+              0.5, 0, 0.5,
+              0.5, 0.5, 0), nrow = 3, byrow = TRUE)
+print(P)
+```
+       
+#### a)
+```{r} 
+print(P[1,1])
+```
+
+$P(x_1=1|x_0=1)=0$      
+
+#### b)
+```{r}
+
+P_3 <- P%*%P%*%P
+print(P_3)
+
+```
+
+
+$P(x_3=1|x_0=1)=$ `r P_3[1,1]`      
+
+#### c)
+States 1 and 3 communicate because you can go from state 1 directly to state 3 with probability 0.5 and you can also go directly from state 3 to state 1 with probability 0.5, so states 1 and 3 do communicate with each other. 
+
+
+#### d)
+Because all states in S communicate with each other, the state space S is irreducible. 
+
+
+#### e)
+
+```{r}
+
+A <- t(P) - diag(rep(1,3))
+A <- rbind(A, rep(1,3))
+RHS <- c(rep(0,3), 1)
+stationary_dist <- qr.solve(A, RHS) # no longer a square system
+
+print(stationary_dist)
+
+
+```
+
+#### f)
+
+```{r}
+set.seed(12345)
+Ntransitions <- 100000
+X <- numeric(Ntransitions)
+current.state <- 1
+for (t in 1:Ntransitions) {
+  current.state <- sample(1:3, size = 1, prob = P[current.state, ])
+  X[t] <- current.state
+}
+
+simulated_dist <- table(X)/Ntransitions
+print(simulated_dist)
+```
+
+The stationary distribution derived through simulation is very similar to the calculated stationary distribution found in part e. 
+
+### Question 3
+
+Run below before conintue
+```{r}
+P <- matrix(c(1, 8, 7, 2, 0, 3, 7, 2, 0), nrow=3)/10
+PE <- matrix(c(1, 2, 3, 1, 2, 1, 8, 6, 4,  0, 0, 2), nrow=3)/10
+observed_y <- c(2, 4, 3, 3, 3, 3, 3, 3, 2, 3, 1, 3, 2, 3, 1, 3, 3, 4, 1)
+```
+
+#### a)
+
+```{r}
+#your solution here
+
+hmm <- initHMM(c("1","2","3"), c("1","2", "3","4"),
+               transProbs= P,
+               emissionProbs= PE)
+observations <- as.character(observed_y)
+simDataFit <- viterbiTraining(hmm, observations)
+print("Transition Matrix")
+new_P <- simDataFit$hmm$transProbs
+print(simDataFit$hmm$transProbs)
+print("Emission Matrix")
+new_PE <- simDataFit$hmm$emissionProbs
+print(simDataFit$hmm$emissionProbs)
+
+```
+
+
+#### b) 
+
+```{r}
+
+A <- t(new_P) - diag(rep(1,3))
+A <- rbind(A, rep(1,3))
+RHS <- c(rep(0,3), 1)
+stationary_dist <- qr.solve(A, RHS) # no longer a square system
+
+print(stationary_dist)
+
+
+```
+Used the updated transition matrix (P) from part 3a to find the stationary distribution.
+
+#### c)
+The hidden markov chain is in state 3 with probability 0.44 based on the stationary distribution and based on the new emission probabilities $P(Y=4|X=3)=$ `r new_PE[3,4]`, thus the long run probability would be $0.25*0.44=$  `r new_PE[3,4]*stationary_dist[3]`
+
+
+#### d)
+If we are given Y1=1 then based on the updated emission probabilities X would have been 3 because for X={1,2} Y cannot be in state 4. Then if we are looking for probability that Y2=4 given Y1=4 (X0=3) then it would mean X would have to equal 3 again for Y2=4, however, based on the updated transition probabilities if X is in state 3 it must go to either state 1 or 2, however, if X1={1,2} then Y2 cannot equal 4 therefore $P(Y_2=4|Y_1=4)=0$.
+

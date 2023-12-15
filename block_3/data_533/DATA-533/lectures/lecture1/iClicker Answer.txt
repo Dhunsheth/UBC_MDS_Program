@@ -1,0 +1,7 @@
+Slide 26: A
+Slide 27: C
+Slide 28: C
+Slide 44: D (Statements 1, 2, and 3 are True)
+Slide 45: B
+Slide 66: B
+Slide 67: B

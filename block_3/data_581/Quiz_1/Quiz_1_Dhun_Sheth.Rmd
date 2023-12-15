@@ -1,0 +1,197 @@
+---
+title: "Quiz_1_32376881"
+author: "Dhun Sheth"
+date: "2023-12-04"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Question 1 - Multiple Choice Questions
+
+Put your answers for MC questions in the table below;
+
+MC   answer
+---  ---
+(a)   iii        
+(b)   iii
+(c)   ii
+(d)   iv
+(e)   i, iv
+
+
+
+### Question 2
+
+```{r, echo = TRUE}
+sample_x <- c(78, 86, 97, 91, 83, 89, 92, 88, 79, 68)
+sample_x
+```
+
+#### part a)
+
+```{r, echo = TRUE}
+set.seed(1413) #DO NOT REMOVE THIS
+
+sample_x_sorted <- sort(sample_x)
+
+print(mean(sample_x_sorted, trim=0.2))
+
+```
+
+#### part b)
+
+
+```{r, echo = TRUE}
+# add your code here
+
+x1000 <- replicate(1000, mean(sample(sample_x_sorted, size = 10, replace= TRUE)
+                              , trim=0.2))
+SE <- sd(x1000)
+print(SE)
+```
+
+#### part c) 
+
+```{r, echo = TRUE}
+# add your code here
+
+# 90% CI
+lower_bound <- quantile(x1000,0.05)
+upper_bound <- quantile(x1000,0.95)
+CI <- c(lower_bound, upper_bound)
+print(CI)
+## OR
+
+ci <- mean(sample_x, trim=0.2) + c(-qnorm(1-0.05), qnorm(1-0.05))*SE
+print(ci)
+```
+
+
+#### Question 3 
+
+Run this code before continue. note that the data is saved under the name `mydata`. 
+
+```{r, echo= TRUE}
+#install.package("mlbench") if needed
+library(mlbench)
+data("PimaIndiansDiabetes2", package = "mlbench")
+mydata <- PimaIndiansDiabetes2
+```
+
+#### part a) 
+
+Because we want to predict if the patient has diabetes or not (1 for yes, and 0 
+for no), we can use the binary logistic regression using the logit link function. 
+
+#### part b) 
+
+```{r, echo= TRUE}
+#your code
+str(na.omit(mydata))
+new_mydata <- na.omit(mydata)
+```
+
+#### part c)
+```{r, echo= TRUE}
+# your codes here
+
+glm.reg <- glm(diabetes~., data=new_mydata, family=binomial)
+
+```
+
+#### part d)
+
+Coefficient for glucose is `r glm.reg$coefficients[[3]]`, because it is positive, there is a positive
+relationship between glucose and predicting diabetes, so the higher glucose is
+the more likely they are to have diabetes. 
+
+#### part e) 
+
+```{r, echo= TRUE}
+# here your code
+print(summary(glm.reg))
+```
+
+Add your explanation here: glucose, mass, and pedigree are below the 0.05 
+significance level and are thus significant.
+
+
+#### part f) 
+
+```{r, echo= TRUE}
+#your code
+step(glm.reg, direction = 'backward')
+```
+Add your explanation here: The final model chosen based on backwards selection
+includes pregnant, glucose, mass, pedigree, and age predictor variables.
+
+
+
+
+### Question 4:
+
+
+Run this code before continue. note that the data is saved under the name `mydata`. 
+
+```{r, echo= TRUE}
+attach(mtcars)
+# you can select a column of a dataset by $ operator, for example
+# wt_col <- mtcars$wt
+data <- mtcars[,c(1,4,6)]
+```
+
+#### part a
+
+assuming there is an intercept for the model, design matrix (X) would be 32x3 (nxp).
+
+#### part b
+
+```{r, echo= TRUE}
+#your code
+
+n <- nrow(data) # number of rows (n) of design matrix
+p <- ncol(data[-1]) + 1 # number of columns (p) of design matrix -- remove y column and add 1's col for intercept
+X <- data[,-1] # remove "y" column to form model matrix
+X1 <- rep(1, n) # column for intercept
+X <- cbind(X1, X) # append 1's to create full model matrix
+y <- data[, 1]
+
+QR <- qr(X) # QR decomposition of X
+Q <- qr.Q(QR, complete=TRUE) # complete=TRUE gives Q1 & Q2
+R <- qr.R(QR, complete=TRUE)
+Q1 <- Q[, 1:p]
+Q1y <- t(Q1)%*%y
+U <- qr.R(QR) # if you want all of R, use complete=TRUE
+
+# parameter estimate
+betahat <- solve(U, Q1y)
+print(betahat)
+
+```
+
+#### part c
+
+```{r, echo= TRUE}
+#your code
+
+Q2 <- Q[, -(1:p)]
+Q2y <- t(Q2)%*%y
+SSE <- t(Q2y)%*%Q2y
+print(SSE)
+
+MSE <- SSE/(n-p)
+```
+
+#### Part d
+
+```{r, echo= TRUE}
+Cii <- sqrt(diag(solve(t(U)%*%U)))
+SEii <- Cii*as.numeric(sqrt(MSE))
+print(SEii)
+
+```

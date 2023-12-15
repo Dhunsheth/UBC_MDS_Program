@@ -1,0 +1,606 @@
+---
+title: "543 Lab 2"
+author: "Emelie"
+date: "22/11/2023"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# Exercise 1
+
+In Lecture 3 on Probability Sampling we saw an example regarding the final grades of 116 students from a previous course.  Consider the  grades.csv file uploaded on CANVAS which contains the grades for all 116 students.  In this lab we will we compute confidence intervals for this population of students based on SRS.
+
+
+# Confidence Intervals
+
+Our first goal is to conduct a 95% confidence interval for the average grade in this class based on a sample of size 10. As a first step, we read in the data.
+```{r}
+Data <- read.csv("grades.csv")
+head(Data)
+```
+
+We will set a seed for reproducibility.
+```{r}
+set.seed(543)
+Sample <- sample(Data$grade,10)
+```
+
+Calculate the sample average and variance.
+```{r}
+mu.hat <- mean(Sample)
+var.hat <- var(Sample)
+```
+
+Store the sample size and population size
+```{r}
+n <- length(Sample)
+N <- length(Data$grade)
+```
+
+Compute lower and upper CI for the population average
+```{r}
+conf = 0.95 # confidence level
+alpha = 1-conf # significance level
+# divide the significance level across 2 tails
+# to find the value of z such that 
+# P(Z < -cval) or P(Z > cval) = 0.05
+# qnorm(alpha/2) # gives us -cval
+cval <- qnorm(alpha/2, lower.tail = FALSE) # gives us cval
+
+# standard error of mu hat 
+se.mu.hat = sqrt((1 - n/N)*(var.hat/n))
+
+CI.l <- mu.hat - cval*se.mu.hat
+CI.u <- mu.hat + cval*se.mu.hat
+round( c(CI.l, CI.u),1)
+```
+
+Alternatively we could save it in a vector `CI` in the following way:
+```{r}
+CI <- mu.hat + c(-1,1)*cval*se.mu.hat
+```
+
+
+The confidence interval is `r round(CI,3)`
+
+# Coverage Probability 
+
+We now compute the coverage probability based on `m = 10000` repetitions. Since we have access to the entire population, we know that the true population average is equal to:
+```{r}
+muy = mean(Data$grade) 
+muy
+```
+
+Let's see how many 95% CI for $\mu$ based on a sample of size 10 contain the true value of $\mu =$ `r muy`.  We will save this information in matrix `sim2`.  Each row of `sim2` will correspond to a single repetition and the first, second and third column will contain the point estimate, lower 95% CI bound and upper 95% CI bound, respectively. 
+```{r}
+m = 10^4
+n = 10 
+sim2 = matrix(0, nrow=m, ncol=3)
+conf = 0.95 # confidence level
+alpha = 1-conf # significance level
+cval <- qnorm(alpha/2, lower.tail = FALSE) 
+
+set.seed(543)
+for (i in 1:m) {
+  sample1 = sample(N, 10)
+  sample1y =  Data$grade[sample1]
+  
+  mu.hat = mean(sample1y)
+  se.hat = sqrt( (1-n/N)*var(sample1y)/n   )
+  
+  ci.mu = mu.hat + c(-1,1)*cval*se.hat
+  
+  sim2[i, 1] = mu.hat
+  sim2[i, 2:3] = ci.mu
+}
+```
+
+An estimate of the coverage probability can therefore be calculated by counting the number of times `r muy` is contained between the lower 95% CI bound (stored in `sig2[,2]`) and upper 95% CI bound (stored in `sig2[,3]`).  
+```{r}
+coverage1 = mean(muy > sim2[,2] & muy < sim2[,3])
+```
+The estimated coverage for a sample size of 10 is `r round(coverage1*100,2)`%.   
+
+
+A useful visual to go along with this number is provided below:
+```{r}
+m1 = 100
+# for ease of viewing lets just look at 100 random CIs from m
+subset = sample(m, size=m1)
+
+# create an logical vector 1=CI contained muy 0=otherwise
+covered.mu=as.numeric(muy > sim2[subset,2] & muy < sim2[subset,3])
+
+# used for plotting 
+two.colours = c(adjustcolor("Red", 0.9), adjustcolor("Grey", 0.6))
+
+plot(x=c(1,1), y=sim2[subset[1],2:3], xlim=c(0, m1)+1/2, 
+     main=expression("One hundred 95% Confidence Intervals for "*mu), 
+     type='l', ylab="",xlab="", ylim=range(sim2[,2:3]), 
+     col= two.colours[covered.mu[1] +1 ])
+
+# create grey CI for those which contained muy 
+# and red CI for those which did not contain muy
+for (i in 2:m1) {
+  lines(x=c(i,i), sim2[subset[i],2:3], 
+        col= two.colours[covered.mu[i] +1 ])
+}
+
+# create a horizontal dashed line indicating where the 
+# true population mean muy falls
+abline(h=muy, col=1, lty=2)
+
+# plot the point estimates for each CI:
+points(1:m1, sim2[subset,1],pch=20, col= two.colours[covered.mu +1 ])
+```
+
+
+
+
+Let's find the estimated coverage for various sample sizes $n$.
+
+`sim3` will store the estimated coverage probabilities for each value of $n$ considered; that is, $n$ = `r seq(10,40,3)`.
+```{r}
+m = 10^4
+n = seq(10,60,3)
+# n = c(10, 30) # comment out for lab 
+sim3 = numeric(length(n))
+
+# set seed for reproducibility
+set.seed(543)
+for (j in 1:length(n)) {
+  temp  = numeric(m)
+  for (i in 1:m) {
+    sample1 = sample(N, n[j])
+    sample1y =  Data$grade[sample1]
+    
+    mu.hat = mean(sample1y)
+    se.hat = sqrt( (1-n[j]/N)*var(sample1y)/n[j]   )
+    ci.mu = mu.hat + c(-1,1)*cval*se.hat
+    
+    temp[i] = as.numeric( muy > ci.mu[1] & muy < ci.mu[2] )
+  }
+  sim3[j] = mean(temp)
+}
+```
+
+Finally lets graph of the estimated coverage probability versus sample size. 
+```{r}
+plot(n, sim3, xlab="Sample Size", ylab="Coverage Probility", ylim=c(.88,.96), pch=19, col=adjustcolor("firebrick", .6), type='b' )
+abline(h=.95,lty=2)
+```
+
+
+
+# Exercise 2
+
+In Lecture 4, we looked at one question open to all graduates and undergraduates (31,631 students total) from a particular university, lets call it Monsters University. The question asked whether students used LinkedIn at least once a week.  The report provides some results broken down by faculty which we used as strata.  Side note:  We might also consider stratifying by graduation year.
+
+Here are the faculty names;
+```{r}
+faculty <- c("AHS","Arts","Eng","Env","Math","Sci")
+```
+total number of students in each faculty;
+```{r}
+population <- c(2434,6661,7998,2503,6661,5374)
+population
+```
+and sample size in each faculty;
+```{r}
+sample <- c(149,341,202,119,165,223)
+sample
+```
+
+
+Here are the results for the LinkedIn question (so, e.g., 13% of Applied Health Sciences students said they used LinkedIn at least once a week).
+```{r}
+linkedin <- c(0.13,0.26,0.34,0.32,0.29,0.18)
+linkedin
+```
+Lets store this information in a data frame:
+```{r}
+temp = data.frame(faculty, population, sample, linkedin)
+temp
+```
+
+
+We may choose to create new variables to make the code easier to understand:
+```{r}
+Nh   <- population
+Wh   <- population/sum(population)
+fh   <- sample/population
+nh   <- sample
+n    <- sum(sample)
+wh   <- sample/n 
+pih  <- linkedin
+temp = data.frame(faculty, Nh, Wh, nh, wh, pih)
+format(temp,digits=2)
+```
+Based on these figures, using the faculty to strata seems like a good thing because there are differences among the strata averages ($\widehat{\pi}_h$).  The exception seems that Eng and Env have similar responses.
+
+
+To check which faculties are over/under-represented:
+```{r}
+faculty[Wh > wh]
+faculty[Wh < wh]
+```
+
+Hence the faculties that are over-represented in the sample are `r faculty[Wh < wh]` and the faculties that are under-represented in the sample are `faculty[Wh < wh]`
+
+ 
+
+  
+
+# Estimates for $\pi$
+
+The overall sample estimate or the ``raw" sample average is $\widehat{\pi} = \sum \frac{n_h}{n} \widehat{\pi}_h =$
+`r round(sum( (nh/n)* pih),3)`
+
+
+
+
+```{r}
+pi.strata.hat = sum(Wh *pih)
+round(pi.strata.hat,3)
+```
+ Using our knowledge of the population-level stratum weights, our stratified sample estimate is $\widehat{\pi}_{s} = \sum W_h \widehat{\pi}_h =$ `r round(pi.strata.hat,3)`
+
+
+```{r}
+sum(Wh^2 * (1-fh)/nh * pih * (1 - pih))
+```
+
+
+
+To calculate a confidence interval or to quantify the sampling error we need a standard error. We can also use the SRSWOR result for the variance of the estimator:
+$$ Var(\widetilde{\mu}_s) = \sum\limits_{h=1}^H W_h^2 \left(1 - \frac{n_h}{N_h}\right)\frac{\sigma_h^2}{n_h} $$
+
+
+
+
+For large $n$  we can use the approximation 
+$$ \sigma^2 \approx \pi \left( 1- \pi \right)$$
+$$Var(\widetilde{\pi}_h) \approx \left( 1-f_h \right) \frac{\pi_h(1-\pi_h)}{n_h} $$ 
+
+$$  \widehat{Var}(\widetilde{\pi}_s) = \sum\limits_{h=1}^H W_h^2 \left( 1-f_h \right) \frac{ \widehat{\pi}_h(1-\widehat{\pi}_h)}{n_h - 1} $$
+
+Conveniently, this means we don't need to know any stratum-level sample variances!
+  
+```{r}
+sigma2.hat.h = pih*(1-pih)
+sum(Wh^2 * (1-fh)*sigma2.hat.h/nh )
+se.pi.strata = sqrt(sum(Wh^2 * (1-fh)*sigma2.hat.h/(nh-1) ))
+se.pi.strata
+```
+
+
+The standard error for the strata estimate is  `r round(se.pi.strata,4)`
+
+```{r}
+alpha = 0.05
+Zval  = qnorm(1-alpha/2) 
+strata.ci = pi.strata.hat + c(-1,+1) * Zval * se.pi.strata
+round(strata.ci,3)
+```
+
+
+
+So a 95% CI for the population proportion is `r round(strata.ci,3)`
+
+
+
+
+## Proportional Allocation
+
+ We can modify $n_1, n_2, \ldots, n_H$ or equivalently the sampling weights $w_h = \frac{n_h}{n}$.
+
+If the sampling weights are equal to the population weights we have **proportional allocation**. Mathematically, this means
+$$\frac{n_h}{n} = \frac{N_h}{N} 
+\qquad\mbox{so}\qquad 
+\frac{n}{N} = \frac{n_h}{N_h}
+\qquad\mbox{and}\qquad 
+n_h \propto N_h$$
+  
+  The previous survey has a sample size of
+```{r}
+nh
+sum(n)
+```
+
+We want to construct a new dataset with the same number of individuals as seen is these data (i.e., $n=$ \Sexpr{n}), calculate the number of individuals required in each stratum to achieve proportional allocation.
+```{r}
+round(n*Wh,0)
+data.frame(faculty, proportional.allocation = round(n*Wh,0) )
+```
+
+
+Comparing the two 
+```{r}
+data.frame(faculty, study.One=nh, proportional = round(n*Wh,0) )
+```
+
+
+  
+# Exercise 3
+
+Let's revisit the Block Data that we studied in the Lab 1 and consider forming strata and using proportional allocation.
+
+- The goal is to estimate the population parameter average. 
+- We can form varying strata using the block weights 
+- and compare to simple random sampling without replacement (SRSWOR).
+
+
+Recall: in the case of proportional allocation, we showed that 
+$$ Var(\widetilde{\mu}_s) = \frac{1}{n}\left(1 - \frac{n}{N}\right)\sum\limits_{h=1}^H W_h\sigma_h^2  $$
+
+and using simple random sampling without replacement (SRSWOR):
+$$ Var(\widetilde{\mu}) = \frac{1}{n}\left(1 - \frac{n}{N}\right) \sigma^2  $$
+  
+Comparing the variance of the stratified sample estimator (via proportional allocation) with that of SRSWOR tells us that 
+    the stratified estimator variance will be lower if
+$$\sum\limits_{h=1}^H W_h\sigma_h^2 < \sigma^2 $$
+  
+  
+Lets investigate this results using the following data:
+
+```{r}
+blocks = read.csv("Blocks.csv", header=TRUE)
+mu.per = mean(blocks$Perimeter)
+mu.wts = mean(blocks$Weights)
+N = nrow(blocks)
+```
+
+
+The population average weight, $\mu_{weights}$, is known to be `r mu.wts`
+```{r}
+plot(blocks[,c(2,3)], col=adjustcolor("firebrick", 0.6), pch=19)
+```
+
+
+
+Throughout this section I will use this `summary.strata()` function.  It will return the estimated $\widetilde{\mu}_s$, $ Var(\widetilde{\mu}_s)$, strata weights, and strata labels.
+```{r}
+summary.strata <- function(y=NULL, strata=NULL, labels=NULL) {
+  ## y is a numerical vector 
+  ## strata is vector containing strata allocations
+  ## label is vector of the strata names
+  
+  Nh = table(strata)
+  Wh = Nh/length(strata)
+  
+  temp = aggregate(y, by=list(strata), FUN=function(z) { c(mean(z), var(z))   })
+  temp = as.matrix(temp)[,-1]
+  temp = as.data.frame(temp)
+  temp[,3] = Wh
+  
+  if (is.null(labels)) temp[,4] = 1:length(Wh)
+  else temp[,4] = labels
+  
+  
+  names(temp) = c("Average", "Variance", "Weight", "Strata") 
+  temp = temp[,c(4,3,1,2)]
+  return(temp)
+}
+```
+
+
+
+\subsection{Strata One } 
+
+Let's consider forming strata based on the weight of the blocks.
+
+```{r}
+strata = numeric(N)
+strata[blocks$Weights < 40] = 1
+strata[blocks$Weights >= 40] = 2
+nam1= c("Light", "Heavy")
+```
+
+
+```{r}
+plot(strata, blocks$Perimeter, col=adjustcolor("firebrick", 0.6), pch=19, xlim=c(0.5,2.5), xaxt='n', ylab="Perimeter")
+axis(1, labels=nam1, at=1:2)
+```
+
+The stratum weights are:
+```{r}
+Wh = table(strata)/length(strata)
+Wh
+```
+
+The stratum variances are:
+```{r}
+sigma2.h= numeric(2)
+sigma2.h[1] = var(blocks$Perimeter[strata == 1])
+sigma2.h[2] = var(blocks$Perimeter[strata == 2])
+sigma2.h
+```
+
+
+
+The variance term under proportional allocation is 
+```{r}
+sum(Wh *sigma2.h)
+```
+
+
+
+The variance term under simple random samling without replacement (SRSWOR) is the population variance given by
+```{r}
+var(blocks$Perimeter)
+```
+
+When comparing the stratified sampling with proportional allocation and simple random samling without replacement (SRSWOR) we have that
+
+ - The variance term under proportional allocation is `r round(sum(Wh *sigma2.h  ),2)`
+ - The variance term under SRSWOR is `r round(var(blocks$Perimeter),2)`
+
+Hence, stratification produces a more precise estimate that SRSWOR.
+```{r}
+temp = summary.strata(y=blocks$Perimeter, strata=strata, labels=nam1)
+format(temp, digits=3)
+```
+
+In the case of proportional allocation, 
+$$ Var(\widetilde{\mu}_s) = \frac{1}{n}\left(1 - \frac{n}{N}\right)\sum\limits_{h=1}^H W_h\sigma_h^2  $$
+```{r}
+n=30 # say
+1/n*(1-n/N)*sum(Wh *sigma2.h)
+```
+
+and using simple random samling without replacement (SRSWOR):
+$$ Var(\widetilde{\mu}) = \frac{1}{n}\left(1 - \frac{n}{N}\right) \sigma^2  $$
+```{r}
+1/n*(1-n/N)*var(blocks$Perimeter)
+```
+
+
+
+# Strata Two
+
+
+Consider forming strata based on block weights.
+```{r}
+strata = numeric(N)
+strata[blocks$Weights < 40] = 1
+strata[blocks$Weights >= 40 & blocks$Weights < 60] = 2
+strata[blocks$Weights >= 60] = 3
+
+nam3 = c("Light", "Medium", "Heavy")
+```
+
+
+```{r}
+plot(strata, blocks$Perimeter, col=adjustcolor("firebrick", 0.6), pch=19, xlim=c(0.5,3.5), xaxt='n', ylab="Perimeter")
+axis(1, labels=nam3, at=1:3)
+```
+
+
+The stratum weights are:
+```{r}
+Wh = table(strata)/length(strata)
+Wh
+```
+
+
+The stratum variances are:
+```{r}
+sigma2.h= numeric(3)
+sigma2.h[1] = var(blocks$Perimeter[strata == 1])
+sigma2.h[2] = var(blocks$Perimeter[strata == 2])
+sigma2.h[3] = var(blocks$Perimeter[strata == 3])
+sigma2.h
+```
+
+
+The variance term under proportional allocation is 
+```{r}
+sum(Wh *sigma2.h  )
+```
+
+
+The variance term under simple random samling without replacement (SRSWOR) is the population variance given by
+```{r}
+var(blocks$Perimeter)
+```
+
+
+When comparing the stratified sampling with proportional allocation and simple random samling without replacement (SRSWOR) we have that
+
+- The variance term under proportional allocation is `r round(sum(Wh *sigma2.h  ),2)`
+- The variance term under SRSWOR is `r round(var(blocks$Perimeter),2)`
+
+```{r}
+temp = summary.strata(y=blocks$Perimeter, strata=strata, labels=nam3)
+format(temp, digits=3)
+```
+
+
+In the case of proportional allocation, 
+$$ Var(\widetilde{\mu}_s) = \frac{1}{n}\left(1 - \frac{n}{N}\right)\sum\limits_{h=1}^H W_h\sigma_h^2  $$
+```{r}
+n=30 # say
+1/n*(1-n/N)*sum(Wh *sigma2.h)
+```
+
+and using simple random samling without replacement (SRSWOR):
+$$ Var(\widetilde{\mu}) = \frac{1}{n}\left(1 - \frac{n}{N}\right) \sigma^2  $$
+```{r}
+1/n*(1-n/N)*var(blocks$Perimeter)
+```
+
+
+
+## Strata Three 
+
+Consider forming strata randomly
+
+```{r}
+set.seed(543543)
+sam1 = sample(1:100, 55)
+strata = rep(2,100)
+strata[sam1] = 1
+plot(strata, blocks$Perimeter, col=adjustcolor("firebrick", 0.6), pch=19, xlim=c(0.5,2.5), xaxt='n', ylab="Perimeter")
+axis(1, labels=c(1,2), at=1:2)
+```
+
+The stratum weighs
+```{r}
+Wh = table(strata)/length(strata)
+Wh
+```
+
+
+The stratum variances
+```{r}
+sigma2.h= numeric(2)
+sigma2.h[1] = var(blocks$Perimeter[strata == 1])
+sigma2.h[2] = var(blocks$Perimeter[strata == 2])
+round(sigma2.h,2)
+```
+
+
+The variance term under proportional allocation is 
+```{r}
+sum(Wh *sigma2.h  )
+```
+
+
+The variance term under simple random samling without replacement (SRSWOR) is the population variance given by
+```{r}
+var(blocks$Perimeter)
+```
+
+
+ When comparing the stratified sampling with proportional allocation and simple random samling without replacement (SRSWOR) we have that
+
+ - The variance term under proportional allocation is `r round(sum(Wh *sigma2.h  ),2)`
+ - The variance term under SRSWOR is `r round(var(blocks$Perimeter),2)`
+
+```{r}
+temp = summary.strata(y=blocks$Perimeter, strata=strata)
+format(temp, digits=3)
+```
+
+In the case of proportional allocation, 
+$$ Var(\widetilde{\mu}_s) = \frac{1}{n}\left(1 - \frac{n}{N}\right)\sum\limits_{h=1}^H W_h\sigma_h^2  $$
+```{r}
+n=30 # say
+1/n*(1-n/N)*sum(Wh *sigma2.h)
+```
+
+and using simple random samling without replacement (SRSWOR):
+$$ Var(\widetilde{\mu}) = \frac{1}{n}\left(1 - \frac{n}{N}\right) \sigma^2  $$
+```{r}
+1/n*(1-n/N)*var(blocks$Perimeter)
+```
+As we can see from this last example, when strata are not chosen carefully, stratification actually can hurt our estimation procedure. 
+
+
+
+
+

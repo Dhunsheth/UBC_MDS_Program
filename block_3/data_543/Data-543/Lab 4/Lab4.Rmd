@@ -1,0 +1,233 @@
+---
+title: "543 Lab 4"
+author: "Emelie"
+date: "Dec 6, 2023"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+# Completely Randomized Design (CRD) - Balanced - ANOVA approach
+
+Again, we will consider the paper planes data as worked with in Lab 3. The response for this data is how far the airplane flew. Here we will compare the two paper airplane designs. We will assume a one factor (design) with two levels (design 1 = blue, design 2 = green). 
+
+```{r}
+paper = read.csv("paperPlanes.csv", header=TRUE)
+```
+
+Recall that the data is unbalanced (there are more observations in the Green treatment than in the Blue).  To make this balanced, I will simply remove the 20th observation so that there are 19 replications of each treatment.
+```{r}
+paper19 = paper[-20,]
+# lets redefine our variables: 
+blue = paper19$Blue
+green = paper19$Green
+n.green = length(green); n.blue = length(blue); c(n.green, n.blue)
+```
+
+The basic goal is to show we can arrive at the identical solution as in Lab 3 using an ANOVA. An ANOVA is used for comparing more than 2 treatments, but it will still work (and be identical to the t.test) if we are only comparing 2. To use the `aov()` function the data needs to be in a format with all the responses in one column and the corresponding factor level in another column. To prepare our data for an ANOVA, we can use the `stack()` function.  This will stack our data on top of each other and create a column indicating the factor levels:
+```{r}
+pdat = stack(paper19, na.rm=TRUE)
+colnames(pdat) = c("distance", "design")
+head(pdat)
+summary(aov(distance ~ design, data = pdat))
+```
+
+ 
+
+# Completely Randomized Design (CRD) - Unbalanced
+
+The calculations for the unbalanced design follow similarly to those for balanced.  Let us redefine our variables so that we have the original unbalanced design.  Namely, 19 observations for the blue group, and 20 observations for green:
+```{r}
+# redefine our variables so that we have a unbalanced design:
+paper = read.csv("paperPlanes.csv", header=TRUE)
+blue = paper$Blue[!is.na(paper$Blue)]
+green = paper$Green
+n.green = length(green); n.blue = length(blue); c(n.green, n.blue)
+```
+ 
+To obtain our ANOVA table, we run the familiar code:
+```{r}
+pdat = stack(paper)
+# remove the NA (produced from having a data.frame with equal number of rows)
+pdat = pdat[!is.na(pdat[,1]), ]
+colnames(pdat) = c("distance", "design")
+summary(aov(distance ~ design, data = pdat))
+```
+Notice how the $p$-value is slightly different from the balanced design. Analogous to the previous section, this $p$-value should agree with the one obtained using a `t.test`:
+```{r}
+t.test(paper$Blue, paper$Green, var.equal = TRUE)
+```
+
+
+
+# Comparing Multiple Treatments (with blocking)
+
+Here we introduce a model for comparing treatments with blocking.  As discussed in lecture, blocking provides a mechanism for incorporating naturally-occurring differences or sources of variation among our units. Blocks usually represent some uncontrollable factor that may have an effect on our response, but is of no interest to the researcher.  Mathematically, blocking factors are treated in very much the same way as treatment factors, but conceptually, we might think of treatment factors as our variables of interest which we are actively manipulating (eg. dose of a drug) and blocking factors as variables that we cannot randomize but may affect our results (eg. age, gender).  
+
+## Randomized Block Designs
+Here we will review the example from lecture 6.
+
+A company wants to replace some software. They have four choices (call them A-D). The selection team conducted a trial to compare the four products. They selected 6 different tasks and assigned 24 employees to the tasks in groups of 4 at random. Within each group, one employee used each product to complete the task. We’ll focus on the time taken to complete the task. The data are in `RBDProducts.csv`.
+
+
+Read in the data and look at the first few rows
+```{r}
+RBD <- read.csv('RBDProducts.csv')
+head(RBD)
+```
+
+
+When possible it is always a good idea to have a look at our data first.
+```{r}
+boxplot(RBD$time ~ RBD$brand, xlab = 'Brand', ylab = 'Time (minutes)')
+```
+
+
+To calculate the average time it takes to perform a task (not distinguishing between them) for each brand, we could type:
+```{r}
+(RBDsplit = split(RBD$time, RBD$brand))
+# average time for tasks in brand A
+mean(RBDsplit$A)
+# average time for tasks in brand B
+mean(RBDsplit$B)
+# average time for tasks in brand C
+mean(RBDsplit$C)
+# average time for tasks in brand D
+mean(RBDsplit$D)
+```
+An equivalent and faster way of computing this is using `tapply()`; see `?tapply()`
+```{r}
+tapply(RBD$time, RBD$brand, mean)
+```
+Similarly, the average of times by each task can be computed as follows:
+```{r}
+tapply(RBD$time, RBD$task, mean)
+```
+
+Looking at the boxplot produced above, it is hard to saying whether the average time for each product is the same.  Let's conduct the formal test for the hypothesis that there are no differences among the treatments i.e. $\tau_1 = \dots = \tau_t = 0$, vs. the alternative that the average time for at least one treatment differs from the rest. 
+
+The anova test:
+```{r}
+summary(aov(time ~ brand + as.factor(task), data = RBD))
+```
+
+Notice that we have one term defining the treatment factor `brand`, and another term for the blocking factor `task`. To ensure that R treats this as a factor, we coerce the data type using `as.factor()`.
+If you would like to verify the calculations from the ANOVA table above "by-hand":
+```{r}
+# Manual calculation of the terms in the ANOVA table: 
+# 4 treatments (products/brands) and 6 blocks (tasks)
+t <- 4
+b <- 6
+
+# For convenience, define y1, y2, y3, y4 for products A, B, C, D:
+y1 <- RBD$time[RBD$brand == 'A']
+y2 <- RBD$time[RBD$brand == 'B']
+y3 <- RBD$time[RBD$brand == 'C']
+y4 <- RBD$time[RBD$brand == 'D']
+
+# or use some of R's built in functions such as `aggregate`.
+aggregate(time  ~ task, RBD, mean)
+
+#The overall average
+ybar <- mean(RBD$time)
+
+#  The average within each treatment
+tapply(RBD$time, RBD$brand, mean)
+# or equivalently, 
+avgBrand = aggregate(time  ~ brand, RBD, mean)$time
+aggregate(time  ~ brand, RBD, mean)
+
+# The averages within each block
+avgTask = tapply(RBD$time, RBD$task, mean)
+aggregate(time  ~ task, RBD, mean)
+
+# The treatment sum of squares
+SST <- b*sum( (avgBrand - ybar)^2 )
+SST
+
+# The block sum of squares
+SSB <- t*sum( (avgTask - ybar)^2 )
+SSB
+
+# The total sum of squares:
+SS <- sum((RBD$time - mean(RBD$time))^2)
+SS
+
+# The residual sum of squares by subtraction
+SSR <- SS - SST - SSB
+SSR
+
+# The residual sum of squares by direct calculation
+sum( (RBD$time - avgTask[RBD$task] - avgBrand[RBD$brand] + ybar )^2 )
+
+# The degrees of freedom
+df.t <- t - 1
+df.b <- b - 1
+df.r <- (t-1)*(b-1)
+c(df.t, df.b, df.r)
+
+# The mean squares
+MST <- SST/df.t
+MSB <- SSB/df.b
+MSR <- SSR/df.r
+c(MST, MSB, MSR)
+
+# The F-statistic
+Fobs <- MST/MSR
+Fobs
+
+# The $p$-value
+p.val <- pf(Fobs, df.t, df.r, lower.tail = FALSE)
+
+# Manually construct the ANOVA table
+temp = matrix(NA, nrow=3, ncol=5)
+dimnames(temp)[[1]] = c("Brand", "Task", "Residuals")
+dimnames(temp)[[2]] = c("Df", "Sum Sq", "Mean Sq", "F value", "Pr(>F)")
+temp[,1] = c(df.t, df.b, df.r)
+temp[,2] = c(SST, SSB, SSR)
+temp[,3] = c(MST, MSB, MSR)
+temp[1,4] = Fobs
+temp[1,5] = p.val
+print(round(temp, 3), na.print="" )
+```
+
+Note I did not put the F value for the block (Task) as we are not interested in testing this. 
+
+
+Based on the $p$-value from the R summary, we can compare it to the standard significance level of 0.05.  Since the value is small, we reject the null hypothesis and conclude that there is significant  evidence to suggest that the average time to complete tasks differs between the four brands. 
+
+## Contrasts
+
+From the boxplot we may want to determine if the average time from A and C is equal to the average time from B and D. Or more specifically:
+
+$$H_0: \theta = 0$$
+$$H_A: \theta \neq 0$$
+Where $\theta = (\tau_A + \tau_C)/2 - (\tau_B + \tau_D)/2$
+
+
+We can do this using `fit.contrast` in the `gmodels` library:
+
+```{r}
+library(gmodels)
+
+brandtaskaov <-aov(time ~ brand + as.factor(task), data = RBD)
+contrasts <- fit.contrast(brandtaskaov, "brand",c(1/2,-1/2,1/2,-1/2))
+contrasts
+```
+We see the estimate for $\theta$ is `r contrasts[1]`, the estimated $SE(\theta)$ is `r contrasts[2]`, the test statistic t=`r contrasts[3]` with the residual degrees of freedom from the ANOVA $df_r$=`r brandtaskaov$df.residual` which yields a two-sided p-value of `r contrasts[4]`. Since the two-sided p-value is less than the $\alpha$-level of 0.05 we have enough evidence to reject $H_0$ in favour of $H_A$. Therefore there is evidence that the average time from A and C is significantly different from the average time from B and D.
+
+
+
+
+## Example - Company Software (without blocking)
+
+As a comparison, lets look at what happens when we neglect to include blocking:
+```{r}
+summary(aov(time ~ brand, data = RBD))
+```
+Notice the change in magnitude of our $p$-values and we arrive a totally different conclusion!  That is, since the p-value is large, we fail to reject the null hypothesis and conclude that there is insufficient evidence to suggest that there is a difference between the average time to complete tasks for the four brands. This speaks to the fact that the blocking structure adds information to our analysis, making it easier to detect true effects if there are any. Also notice that the treatment sum of squares is the same for this analysis as the blocked one! 
+

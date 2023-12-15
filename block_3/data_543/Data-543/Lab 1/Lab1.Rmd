@@ -1,0 +1,230 @@
+---
+title: "543 Lab 1"
+author: "Emelie"
+date: "November 15, 2023"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# Probability Sampling
+
+We won't be covering this in detail until Tuesday's lecture, however I think/hope the notation and results are straightforward enough to follow prior. If I'm wrong, don't spend too much focus on the lab until after Tuesday's lecture is reviewed!
+
+This lab will compare the sampling methods:
+
+* Simple random sampling without replacement (SRSWOR)
+* Simple random sampling with replacement (SRSWR)
+
+ 
+We will be interested in  $\mu$ and $\sigma^2$, i.e.\ the ``true" population mean and variance. For both SRSWOR and SRSWR use the following estimators:
+
+* $\tilde{\mu} = \frac{1}{n}\sum\limits_{i\in S} y_i$ 
+* $\tilde{\sigma}^2 = \frac{1}{n-1}\sum\limits_{i \in S} (y_i - \tilde{\mu})^2$ 
+
+where S is a random sample with $P(S = s)$ defined by our sampling protocol. Note:  estimates are fixed values, estimators are random variables.
+
+
+In this lab we will "show" the following result for SRSWOR
+ \begin{equation}\label{eq:WOR}
+E\left[ \tilde{\mu } \right] =  \mu, \quad\quad\mbox{and} \quad\quad 
+Var \left ( \tilde{\mu } \right )  = \left( 1 - \frac{n}{N} \right)  \frac{\sigma^2 }{n} 
+\end{equation}
+and for SRSWR 
+\begin{equation}\label{eq:WR}
+E\left[\tilde{\mu} \right] = \mu \quad\quad\mbox{and} \quad\quad Var(\tilde{\mu}) = \left(1 - \frac{1}{N}\right)\frac{\sigma^2}{n} 
+\end{equation}
+That is, we will verify that the (empirical) distribution of $\tilde \mu$ is centered close to $\mu$ and that the variance of the mean estimator is larger for SRSWR than for SRSWOR.
+
+# Data
+For this lab we will be using a data set comprised of the weights and perimeters of 100 wooden blocks.  The attribute of interest to us is the block weights. To begin, let's read in the `Blocks` data:
+ 
+```{r}
+blocks = read.csv("Blocks.csv", header=TRUE)
+nrow(blocks) # should be 100 data points
+head(blocks)
+attach(blocks) # so we can call the attributes by name
+```
+
+# Population Parameters
+
+We will treat the complete set of 100 blocks as our **target population**. As we have the complete set of weights for these blocks, we can calculate the true population average `Weights` and look at the distribution in a histogram:
+```{r}
+mu_w = mean(Weights)
+hist(Weights)
+```
+
+We can do the similar calculations for `Perimeter`.
+```{r}
+mu_p = mean(Perimeter)
+hist(Perimeter)
+```
+
+The mean weight is `r mu_w` and the average perimeter is `r mu_p`.  As one might expect, the bigger the perimeter, the more weight a block will have.  This relationship, made apparent in the scatterplot below, will be used in a future lab.
+```{r}
+plot(Perimeter, Weights)
+```
+
+```{r, echo=FALSE}
+n = 10
+```
+
+Let's consider a simple random sample without replacement (SRSWOR) of size $n=`r n`$ taken from the set of 100 blocks. To make the results reproducible, we will set a seed equal to the course number in DATA 543:
+```{r}
+set.seed(543)
+sample1 = sample(1:100, n)
+```
+
+As can be seen in the details of `sample` (see `?sample`), the default functionality is to sample without replacement, i.e. `replace=FALSE` by default. To tie this in with the set notation presented in class:
+
+* $U =\{1, 2, \dots, 99, 100\}$
+* $s = `r sample1[1]`, `r sample1[2]`, \dots, `r sample1[n-1]`, `r sample1[n]`$ taken from `sample1` above.
+
+The sample average and sample standard deviation of the weights can be calculated as follows:
+```{r}
+wbar = mean(Weights[sample1])
+wsd = sd(Weights[sample1])
+```
+
+Hence $\hat{\mu} =$ `r wbar` and $s_{w} =$ `r round(wsd,2)`. 
+
+
+
+# SRSWR
+ 
+As an exercise, complete the same as above for a simple random sample with replacement (SRSWR). You can find the solution in the Rmd file.
+
+```{r, echo=FALSE, eval=FALSE}
+ set.seed(543)
+sample2 = sample(1:100, n, replace=TRUE)
+wbar2 = mean(Weights[sample2])
+wsd2 = sd(Weights[sample2])
+```
+ 
+# Simulation Study
+
+Now lets consider a SRSWR and a SRSWOR of size $n= 5, 10, 15,$ and 20.  For each sample size we will consider 10000 replications (called `M` in the code provided below.) Again, we are interested in the average `Weights`.  We will hold the results for each replication/sample size   using SRSWOR and SRSWR in a matrix called `z1` and `z2`, respectively.
+
+```{r}
+M = 10^4
+n = c(5, 10, 15, 20)
+names(n) = paste("n", n, sep="=")
+# store the results for a SRSWOR
+z1 = matrix(0, nrow=M, ncol=length(n))
+# store the results for a SRSWR
+z2 = matrix(0, nrow=M, ncol=length(n))
+colnames(z1) = colnames(z2) = paste("n", n, sep="=")
+for (i in 1:M) {
+  for (j in 1:length(n)) {
+
+  sample1  = sample(1:100, n[j])
+  sample2  = sample(1:100, n[j], replace=TRUE)
+
+  ## the sample averages 
+  ybar1 = mean(Weights[sample1])
+  ybar2 = mean(Weights[sample2])
+  
+  z1[i,j] = ybar1
+  z2[i,j] = ybar2
+  }
+}
+```
+
+Display the empirical estimate of the sampling distribution.  We will superimpose the true value of $\mu$ (in red)
+```{r}
+par(mfrow=c(2,2))
+for (j in 1:4) {
+  hist(z1[,j], main= paste("SRSWOR, n=", n[j]) , xlim=c(20,80),
+       xlab="the approximate sampling \n distribution")
+  abline(v=mu_w, col=2) # compare with the true value
+}
+```
+
+```{r}
+par(mfrow=c(2,2))
+for (j in 1:4) {
+  hist(z2[,j], main= paste("SRSWR, n=", n[j]) , xlim=c(20,80),
+       xlab="the approximate sampling \n distribution")
+  abline(v=mu_w, col=2) # compare with the true value
+}
+```
+
+In can be shown that  $\hat{\mu}$ is an unbaised estimate of $\mu$, ie. $E[\tilde{\mu}] = \mu$. It is therefore unsurprising that the true value is very close to the empirical distribution means:
+
+```{r}
+round(apply(z1,2,mean),3)
+round(apply(z2,2,mean),3)
+mu_w
+```
+
+As mentioned in the introduction, the estimator for the mean using SRSWOR is more efficient than that for SRSWR. To see if this hold true in the empirical distribution, lets compare the  variance of each of the estimators.
+
+```{r}
+round( apply(z1,2,var),2) # variance of muhat using SRSWOR
+round( apply(z2,2,var),2) # variance of muhat using SRSWR
+```
+
+Notice how the variance of $\hat \mu_{SRSWOR}$ is smaller than the variance of $\hat \mu_{SRSWR}$ for all $n = (5, 10, 15, 20)$.  As a final step, lets compare the variance calculated on the empirical distribution with the theoretical distribution.
+```{r}
+round((1-n/100)*var(Weights)/n, 2) # variance of muhat using SRSWOR
+round((1-1/100)*var(Weights)/n, 2) # variance of muhat using SRSWR
+```
+
+
+# From Lecture 2
+
+I'll throw these in void of commentary as it is the code used to generate examples in Lecture!
+
+```{r}
+set.seed(543)
+library(randomNames)
+names <- randomNames(100)
+programs <- c("Accounting", "Physics", "History", "Arts", "Chemistry", "Electrical Engineering", "Mechanical Engineering", "Civil Engineering", "Computer Science", "Economics", "French", "Geography", "Journalism", "Economics", "Law", "Nursing", "Mathematics", "Statistics", "Sociology", "Music")
+program <- sample(rep(programs, each=5))
+englcourse <- sample(rep(c("ENGL 100 001","ENGL 100 002", "ENGL 100 003", "ENGL 100 004", "ENGL 100 005"), each=20))
+classList <- data.frame(names,program,englcourse)
+
+
+#########################
+# SRSWOR
+#########################
+
+set.seed(543)
+# to sample their position in the list:
+sample(100, 20)
+
+# to sample them by name:
+head(classList)
+sample(classList$names, 20)
+
+#########################
+# Stratified Sampling
+#########################
+
+# divides the data into the groups defined by program
+byProgram <- split(classList, program)
+
+# since we want a sample of size 20 and there are 20 programs, we need to sample 1 person from each program
+stratSamp <- lapply(byProgram, function(x) sample(x$names,1))
+
+#########################
+# Cluster Sampling
+#########################
+byCourse <- split(classList, englcourse)
+sampCourse <- as.character(sample(unique(classList$englcourse),1))
+byCourse[sampCourse]
+
+#########################
+# Systematic Sampling
+#########################
+
+# start at 2 and take every 5th one thereafter
+clustSampB <- seq(from=2, to =100, by = 5)
+clustSampB
+classList$names[clustSampB]
+```
+
+ 

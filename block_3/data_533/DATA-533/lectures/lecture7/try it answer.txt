@@ -1,0 +1,42 @@
+Slide # 29
+try:
+    num1, num2 = eval(input("Enter two numbers, separated by a comma : "))
+    result = num1 / num2
+except ZeroDivisionError:
+    print("Cannot divide by 0!")
+except SyntaxError:
+    print("Comma missing")
+except:
+    print("Wrong inputs")
+else:
+    print("Successful")
+finally:
+    print(“Finish")
+
+Slide no# 38
+
+import getpass
+
+class Error(Exception):
+   """Base class for other exceptions"""
+   pass
+
+class PasswordTooSmallError(Error):
+   """Raised when the password is too small"""
+   pass
+
+class PasswordTooLargeError(Error):
+   """Raised when the password is too large"""
+   pass
+
+try:
+    pwd = getpass.getpass('Password:')
+    if len(pwd) < 6:
+        raise PasswordTooSmallError
+    elif len(pwd) > 12:
+        raise PasswordTooLargeError
+except PasswordTooSmallError:
+    print("Password lenth is too small")
+    
+except PasswordTooLargeError:
+    print("Password lenth is too large")

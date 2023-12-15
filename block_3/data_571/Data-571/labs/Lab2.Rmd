@@ -1,0 +1,319 @@
+---
+title: "Lab 2"
+author: "Jeff"
+date: "11/28/2023"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+## Trees
+Lets run classification trees on the `body` data set from the `gclus` library. It contains several physical measurements on 507 people, and includes a reported gender variable.
+
+```{r}
+library(tree)
+library(gclus)
+data(body)
+set.seed(12412)
+body$Gender <- factor(body$Gender)
+bod <- data.frame(body)
+bocl <- tree(Gender~., data=bod)
+plot(bocl)
+text(bocl)
+```
+
+Note the split furthest to the right. On both sides of the binary split, the prediction is still 1 (male). This is not a mistake, but rather a byproduct of how the tree is being built --- deviance and the gini index can be considered measures of 'impurity'. 
+
+So, suppose you have a node with 70 males and 30 females. You would predict male on that node and have 30 misclassifications. That part of the tree has an average Gini index of
+```{r}
+.3*.7 + .7*.3
+#or
+2*.3*.7
+```
+You then consider another split where the left side gives you 20 males, 0 females and the right side gives you 50 males, 30 females. You still predict male for both nodes, and you still have 30 misclassifications. Now your average gini index is
+```{r}
+(2*(1*0) + 2*5/8*3/8)/2
+```
+
+Hopefully this gives you a sense of why these splits can happen. But note that our pruning strategy on classification trees focuses on misclassification rate...so
+
+```{r}
+cv.bocl <- cv.tree(bocl, FUN = prune.misclass)
+plot(cv.bocl, type="b")
+p.bocl <- prune.misclass(bocl, best=9)
+plot(p.bocl)
+text(p.bocl)
+summary(p.bocl)
+```
+We now see that those strange cases are pruned away in the simplified tree. Note that there may be some applied cases where the purity actually is more important than misclassification rate (in which case, you may want to consider a different function for pruning). Also note that the misclassification rate quoted by the last summary call is actually a training data error rate --- and as such, not useful for comparing to other models. The believable long-run misclassification rate is instead...
+
+```{r}
+# number of misclassifications
+min(cv.bocl$dev)
+# misclassification rate
+min(cv.bocl$dev)/nrow(body)
+```
+
+## Bagging Trees
+Continuing with the body data set...
+
+```{r}
+library(gclus)
+data(body)
+body$Gender <- factor(body$Gender)
+bod <- data.frame(body)
+```
+
+
+Now we perform bagging on the body data set using trees. Since there are 24 predictors in this set, we just tell R to perform random forests such that all predictors are considered at each split. This is done via the `mtry` command...
+
+```{r}
+library(randomForest)
+set.seed(2331)
+bodybag <- randomForest(Gender~., data=bod, mtry=24, importance=TRUE)
+bodybag
+```
+
+As noted in lecture, that misclassification rate is itself a prediction of future misclassification rates, since it's based on the out-of-bag samples. We can therefore even compare it to CV results from other methods.
+
+We can also look at variable importance from the bagging model
+
+```{r}
+varImpPlot(bodybag)
+```
+
+
+## Random forests
+Now we will try random forests. Recall: the only difference between bagging trees and random forests is that we randomly remove predictors from consideration at each binary split. This means our trees have (individually) less information to grow from...which leads to a larger variety of trees...and therefore less correlation across trees...and therefore more stability and better predictions (on average). See `?randomForest` for `mtry` description...by default it is set to approx `sqrt(p)` for classification... 
+
+```{r}
+set.seed(4521)
+bodyRF <- randomForest(Gender~., data=bod, importance=TRUE)
+bodyRF
+varImpPlot(bodyRF)
+```
+
+We can see from the output a lower observed error on the OOB observations (20 misclassifications for RF, 26 for bagging, 28 using a single tree).
+
+
+
+## Regression on Simulation
+Now on to a perhaps helpful visualization. Lets use a simple regression example to illustrate how random forests manage to provide improved prediction versus a regular tree.
+
+```{r}
+x <- runif(100, 0, 10)
+y <- 5 + 2*x + rnorm(100)
+plot(y~x)
+```
+
+I've specifically chosen a simple relationship between Y and X that trees (on their own) will struggle with. Let's see the result for a single tree...
+
+```{r}
+library(tree)
+simtree <- tree(y~x)
+cv_simtree <- cv.tree(simtree)
+plot(cv_simtree, type="b")
+```
+
+No pruning necessary. Let's look at the resulting tree...
+```{r}
+plot(simtree)
+text(simtree)
+```
+
+
+
+And also plot the predictions on our scatterplot. Note that some of these commands are hackjobs to get the plotting relatively automated --- you are welcome to walk through the functions on your own time if interested, but these are not core coding concepts for DATA 571, so don't feel like you need to understand what's being done...
+
+```{r}
+plot(y~x)
+xsplits <-na.omit(as.numeric(unlist(strsplit(simtree$frame$splits[,1], "<"))))
+xsplitsleft <- c(-500, sort(xsplits))
+xsplitsright <- c(sort(xsplits), 500)
+ypreds <- simtree$frame$yval[simtree$frame$var=="<leaf>"]
+abline(v=xsplits)
+segments(xsplitsleft, ypreds, xsplitsright, ypreds, col="red", lwd=3)
+```
+
+Now enter random forests!
+
+```{r}
+simfor <- randomForest(y~x)
+```
+
+In order to plot (approximately) the prediction line, we will have to set up a grid of X values and then receive the predictions for those. As we're on a scale from 0-10, lets use 0.01...meaning 1001 values will serve as our points to connect the dots with...
+
+```{r}
+xgrid <- seq(0, 10, by=0.01)
+ynew <- predict(simfor, newdata=data.frame(x=xgrid))
+plot(y~x)
+lines(xgrid, ynew, col="blue", lwd=3)
+```
+
+Cool huh? Random forests actually provide us a relatively smooth prediction for Y as we move along X...at least certainly as compared to a single tree. Here we'll plot them together...
+
+```{r}
+plot(y~x)
+abline(v=xsplits)
+segments(xsplitsleft, ypreds, xsplitsright, ypreds, col="red", lwd=3)
+lines(xgrid, ynew, col="blue", lwd=3)
+```
+
+As I'm sure you could imagine, the blue model (random forests) will have significantly lower MSE for future values than the red model (single tree).
+
+
+
+## Examples from class
+Here also are the commands to provide some of the outputs found on the lecture slides. Many of these are non-essential for your learning purposes, but you may be interested anyway (or pickup a few useful tricks along the way)
+
+Trees lecture
+```{r}
+### classification tree motivating example
+library(mvtnorm)
+set.seed(5352)
+ga <- rmvnorm(20, c(5,5), sigma=matrix(c(1,-.9, -.9, 1), byrow=TRUE, nrow=2))
+gb <- rmvnorm(10, c(7,7), sigma=matrix(c(1,-.5, -.5, 1), byrow=TRUE, nrow=2))
+gc <- rmvnorm(15, c(8,7), sigma=matrix(c(.7,0,0, .7), byrow=TRUE, nrow=2))
+plot(rbind(ga,gb,gc), type="n", xlab="X1", ylab="X2", xaxt="n", yaxt="n")
+plot(rbind(ga,gb,gc), type="n", xlab="X1", ylab="X2")
+points(ga, col="red", pch=2, lwd=3)
+points(gb, col="blue", pch=3, lwd=3)
+points(gc, col="purple", pch=4, lwd=3)
+abline(v=5.4)
+axis(1, at=5.4, labels="a")
+abline(v=7)
+axis(1, at=7, labels="b")
+#abline(h=5)
+segments(5.4, 5, 7, 5)
+segments(0, 5, 5.4, 5, lty="dashed")
+axis(2, at=5, labels="c")
+
+
+####pretty good solution there, continue to overfit...
+segments(6.34, 5, 6.34, 10)
+segments(6.34, 5, 6.34, 0, lty="dashed")
+axis(1, at=6.34, labels="d")
+segments(6.15, 5, 6.15, 10)
+segments(6.15, 5, 6.15, 0, lty="dashed")
+axis(1, at=6.15, labels="e")
+segments(6.34, 8.1, 7, 8.1)
+segments(6.34, 8.1, 0, 8.1, lty="dashed")
+axis(2, at=8.1, labels="f")
+abline(v=7.5)
+axis(1, at=7.5, labels="h")
+abline(v=7.4)
+axis(1, at=7.4, labels="g")
+
+
+cladat <- rbind(ga,gb,gc)
+clag <- c(rep("tri", 20), rep("plus", 10), rep("x", 15))
+cladat <- data.frame(cladat)
+cladat <- cbind(cladat, factor(clag))
+colnames(cladat) <- c("X1", "X2", "Group")
+
+clat <- tree(Group~., cladat)
+plot(rbind(ga,gb,gc), type="n", xlab="X1", ylab="X2")
+points(ga, col="red", pch=2, lwd=3)
+points(gb, col="blue", pch=3, lwd=3)
+points(gc, col="purple", pch=4, lwd=3)
+abline(v=6.66)
+segments(6.66, 5.336, 0, 5.336)
+segments(5.87, 5.336, 5.87, 12)
+segments(6.66, 7.65, 12, 7.65)
+
+
+clat2 <- tree(Group~., cladat, control=tree.control(nrow(cladat),mincut=2))
+plot(clat2)
+text(clat2)
+table(clag, predict(clat2, type="class"))
+plot(rbind(ga,gb,gc), type="n", xlab="X1", ylab="X2")
+points(ga, col="red", pch=2, lwd=3)
+points(gb, col="blue", pch=3, lwd=3)
+points(gc, col="purple", pch=4, lwd=3)
+abline(v=6.66)
+segments(6.66, 5.336, 0, 5.336)
+segments(5.1, 5.336, 5.1, 12)
+segments(6.66, 7.65, 12, 7.65)
+
+cvcl <- cv.tree(clat2)
+
+#tree regression
+set.seed(341241)
+x <- sort(runif(500, 0, 10))
+y1 <- rnorm(100, mean=1)
+y2 <- rnorm(20, mean=5, sd=3)
+y3 <- rnorm(280, mean=8)
+y4 <- rnorm(20, mean=6, sd=1.5)
+y5 <- rnorm(80, mean=4)
+dat <- cbind(x, c(y1,y2,y3,y4,y5))
+plot(dat, xlab="X", ylab="Y", xaxt="n", yaxt="n")
+plot(dat[,1:2], xlab="X", ylab="Y")
+
+abline(v=1.6)
+axis(1, at=1.6, labels="a")
+abline(v=2.0)
+axis(1, at=2.0, labels="b")
+abline(v=7.8)
+axis(1, at=7.8, labels="c")
+abline(v=8.25)
+axis(1, at=8.25, labels="d")
+
+segments(-1,mean(dat[x<=1.6, 2]),1.6,mean(dat[x<=1.6, 2]), col="red", lwd=3)
+segments(1.6,mean(dat[x>1.6&x<=2.0 , 2]),2.0,mean(dat[x>1.6&x<=2.0, 2]), col="red", lwd=3)
+segments(2.0,mean(dat[x>2.0&x<=7.8 , 2]),7.8,mean(dat[x>2.0&x<=7.8, 2]), col="red", lwd=3)
+segments(7.8,mean(dat[x>7.8&x<=8.25 , 2]),8.25,mean(dat[x>7.8&x<=8.25, 2]), col="red", lwd=3)
+segments(8.25,mean(dat[x>8.25, 2]),12,mean(dat[x>8.25, 2]), col="red", lwd=3)
+
+dat <- data.frame(dat)
+colnames(dat) <- c("X", "Y")
+regt <- tree(Y~X, data=dat)
+abline(v=1.89)
+abline(v=1.62)
+abline(v=7.94)
+abline(v=8.25)
+
+segments(-1,mean(dat[x<=1.62, 2]),1.62,mean(dat[x<=1.62, 2]), col="red", lwd=3)
+segments(1.62,mean(dat[x>1.62&x<=1.89 , 2]),1.89,mean(dat[x>1.62&x<=1.89, 2]), col="red", lwd=3)
+segments(1.89,mean(dat[x>1.89&x<=7.94 , 2]),7.94,mean(dat[x>1.89&x<=7.94, 2]), col="red", lwd=3)
+segments(7.94,mean(dat[x>7.94&x<=8.25 , 2]),8.25,mean(dat[x>7.94&x<=8.25, 2]), col="red", lwd=3)
+segments(8.25,mean(dat[x>8.25, 2]),12,mean(dat[x>8.25, 2]), col="red", lwd=3)
+
+cvregt <- cv.tree(regt)
+plot(cvregt)
+
+x2 <- dat$X^2
+dat <- cbind(dat,x2)
+quadmod <- lm(Y~., data=dat)
+summary(quadmod)
+curve(-0.698+3.386*x-0.31*x^2, col="red", add=TRUE)
+library(DAAG)
+cvquad <- cv.lm(data=dat, quadmod, m=10, printit=FALSE)
+sum((dat$Y-cvquad$cvpred)^2)
+```
+
+Bagging and Random Forests Lecture
+```{r}
+library(gclus)
+library(tree)
+data(wine)
+pairs(wine[,-1], col=wine[,1])
+winetree <- tree(factor(Class)~., data=wine)
+plot(winetree)
+text(winetree)
+winetreecv <- cv.tree(winetree, FUN=prune.misclass)
+plot(winetreecv)
+
+winetreeprune <- prune.misclass(winetree, best=4)
+plot(winetreeprune)
+text(winetreeprune)
+library(randomForest)
+set.seed(41351)
+winebag <- randomForest(factor(Class)~., mtry=13, data=wine, importance=TRUE)
+winebag
+set.seed(41351)
+winefor <- randomForest(factor(Class)~., data=wine, importance=TRUE)
+winefor
+```

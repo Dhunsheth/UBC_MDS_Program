@@ -1,0 +1,74 @@
+Slide 29:
+
+class Rectangle:
+    # initialize with attributes: width and height 
+    def __init__(self, width, height):
+        self.width = width
+        self.height = height
+
+    # Create area method    
+    def area(self):
+        return self.width * self.height
+
+Slide 30:
+
+class Line:
+    # initialize with attributes: coord1 and coord2
+    def __init__(self, coord1, coord2):
+        self.coord1 = coord1
+        self.coord2 = coord2
+
+    #create length method to calculate the length between two points
+    def length(self):
+        x1,y1 = self.coord1
+        x2,y2 = self.coord2
+        return ((y2-y1)* (y2-y1) + (x2-x1)*(x2-x1))
+
+    #create slope method to find the slope between two points    
+    def slope(self):
+        x1,y1 = self.coord1
+        x2,y2 = self.coord2
+        return (y2-y1)/(x2-x1)
+    
+coord1 = (10,10)
+coord2 = (20,20)
+line = Line(coord1, coord2)
+print(line.length())
+print(line.slope())
+
+
+Slide 69:
+class Rectangle:
+    # initialize with attributes: length and width 
+    def __init__(self, length , width):
+        self.length = length
+        self.width = width
+        
+    # Create Perimeter method
+    def Perimeter(self):
+        return 2*(self.length + self.width)
+    
+    # Create area method
+    def Area(self):
+        return self.length*self.width   
+    
+    # create display method
+    def display(self):
+        print("The length of rectangle is: ", self.length)
+        print("The width of rectangle is: ", self.width)
+        print("The perimeter of rectangle is: ", self.Perimeter())
+        print("The area of rectangle is: ", self.Area())
+class Parallelepipede(Rectangle):
+    def __init__(self, length, width , height):
+        Rectangle.__init__(self, length, width)
+        self.height = height
+        
+    # define Volume method
+    def volume(self):
+        return self.length*self.width*self.height
+        
+myRectangle = Rectangle(7 , 5)
+myRectangle.display()
+print("----------------------------------")
+myParallelepipede = Parallelepipede(7 , 5 , 2)
+print("the volume of myParallelepipede is: " , myParallelepipede.volume())

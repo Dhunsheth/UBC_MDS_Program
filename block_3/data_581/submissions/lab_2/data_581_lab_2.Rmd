@@ -1,0 +1,151 @@
+---
+title: "DATA-581 Lab 2"
+author: "Dhun Sheth"
+date: "2023-11-29"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+library(MASS)
+knitr::opts_chunk$set(echo = TRUE)
+library(MPV)
+```
+
+## Question 3 (Exercise 5 from Ch. 4)
+### Part A
+```{r question_3_part_a}
+
+y <- c(1,3,5,6,5,7)
+x <- c(0,1,2,3,4,5)
+X <- matrix(c(1,1,1,1,1,1,0,1,2,3,4,5), nrow=6)
+print(X)
+
+```
+
+### Part B
+```{r question_3_part_b}
+
+X.QR <- qr(X)
+R <- qr.R(X.QR, complete=TRUE)
+Q <- qr.Q(X.QR, complete=TRUE)
+print(Q)
+print(R)
+print(Q%*%R)
+```
+
+### Part C
+```{r question_3_part_c}
+
+U <- qr.R(X.QR)
+U_inv <- solve(U) 
+print(U_inv)
+
+```
+### Part D
+```{r question_3_part_d}
+
+p <- ncol(R)
+n <- nrow(X)
+Q1 <- Q[,1:p]
+
+beta <- U_inv %*% t(Q1) %*% y
+print(beta)
+
+```
+
+### Part E
+```{r question_3_part_e}
+
+y_pred <- beta[1] + beta[2]*x
+QR_RSS <- sum((y_pred-y)^2)
+print(QR_RSS)
+
+```
+
+### Part F
+```{r question_3_part_f}
+
+error_var <- QR_RSS/(n-p)
+print(error_var)
+
+```
+
+### Part G
+```{r question_3_part_g}
+
+SE_beta <- sqrt(error_var)*sqrt(diag(solve(t(U)%*%U)))
+t_statistic <- beta[2]/SE_beta[2]
+p_value <- 2*(1-pt(t_statistic,n-p))
+print(p_value)
+```
+
+### Part H
+The test statistic follows a t-distribution on n-p degrees of freedom, 6-2 = 4 D.o.F. The p-value of the t-test is `r p_value` and because it is below the 0.05 significant level, there is enough evidence to reject the null hypothesis.
+
+
+## Question 5 (Exercise 2 from Ch. 8)
+### Part A
+```{r question_5_part_a}
+
+glm_reg <- glm(y~x, data=p13.2, family=binomial())
+summary(glm_reg)
+
+```
+
+\(log(\frac{p}{1-p}) = `r glm_reg$coefficients[1]` + `r glm_reg$coefficients[2]`*x\)
+
+\(p = \frac{e^{`r glm_reg$coefficients[1]` + `r glm_reg$coefficients[2]`*x}}{1 + e^{`r glm_reg$coefficients[1]` + `r glm_reg$coefficients[2]`*x}}\)
+
+### Part B
+```{r question_5_part_b}
+
+y.logit2 <- glm(y~x, data = p13.2, family = binomial(link = "logit"))
+anova(y.logit2, glm_reg)
+
+plot(y~x, data=p13.2)
+x_value <- 35000:75000
+lines(x_value, predict(glm_reg,
+newdata=data.frame(x = x_value), type = "response"))
+
+```
+
+There is only 1 predictor variable and the residual deviance is not much larger than the degree's of freedom, hence, the model is acceptable.
+
+In addition, looking at the graph and estimated curve, the model seems acceptable.
+
+### Part C
+\(p= `r exp(glm_reg$coefficients[1] + glm_reg$coefficients[2]*40000)/(1+exp(glm_reg$coefficients[1] + glm_reg$coefficients[2]*40000))` => \) hence unlikely they own their home.  
+
+## Question 6 
+### Part A, B
+```{r question_6_part_a}
+
+epil_reg <- glm(y~age+trt, data=epil, family=poisson)
+print(summary(epil_reg))
+
+```
+
+Based on the p-values being below the 0.05 significance level, all coefficients (intercept, age, trt) are significant. 
+
+### Part C 
+```{r question_6_part_c}
+
+print(confint(epil_reg))
+```
+
+### Part D
+The beta for treatment is `r epil_reg$coefficients[3]`. Because it is negative, this shows a negative relationship indicating a reduction in seizures with treatment. In addition, the treatment coefficient is significant. 
+
+### Part E
+```{r question_6_part_e}
+
+new_data <- data.frame(age = 20, trt = "progabide")
+pred_y <- predict(epil_reg, newdata = new_data, type = "response")
+print(pred_y)
+
+```
+
+Predicted number of seizures for a 20-year-old with treatment: " `r round(pred_y)`

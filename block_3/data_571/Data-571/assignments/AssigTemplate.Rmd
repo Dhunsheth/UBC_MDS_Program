@@ -1,0 +1,43 @@
+---
+title: "Assignment Template"
+author: "FULL Name and Student Number"
+date: "2023"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Q1
+Answer
+
+# Q2
+Answer
+
+# Q3
+### a)
+For part a, answer
+
+### b)
+For part b, r code and answer
+
+```{r}
+example <- 3
+example
+```
+Explanation and interpretation of above.
+
+#Q4
+
+Here is some code with the output suppressed
+
+```{r, results="hide"}
+example <- 1:1000000000
+example
+```
+because it would take up a lot of space!
+
+
+
+

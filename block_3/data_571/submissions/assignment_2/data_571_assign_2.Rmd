@@ -1,0 +1,276 @@
+---
+title: "Data-571 Assignment 2"
+author: "Dhun Sheth"
+date: "2023-12-05"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(randomForest)
+library(tree)
+library(glmnet)
+library(DAAG)
+library(gbm)
+library(caret)
+```
+## Question 1
+### Part A
+```{r question_1_part_a}
+
+mydata <- read.csv("datasalaries.csv", stringsAsFactors=TRUE)
+tree_reg <- tree(totalyearlycompensation~., data = mydata)
+plot(tree_reg)
+text(tree_reg, pretty=0)
+```
+
+### Part B
+I would prefer to work for a company other than Amazon, Microsoft, Oracle, Apple or Google because this leads to a higher salary (646300) because assuming you are on the 2nd decision on the right side of the tree, if you say no to working at Amazon, Microsoft, and Oracle -> this leads to a 5th possible decision where you if you work for Apple or Google you make 436600 but if you also don't work for Apple and Google you make around the 646300 amount. 
+
+### Part C
+```{r question_1_part_c}
+set.seed(51341)
+tree_cv <- cv.tree(tree_reg)
+plot(tree_cv, type="b")
+print(tree_cv$dev[2]/length(mydata$totalyearlycompensation))
+```
+
+10-fold CV suggests to use 7 terminal nodes.
+
+### Part D
+```{r question_1_part_d}
+
+pruned_tree_reg <- prune.tree(tree_reg, best=7)
+plot(pruned_tree_reg)
+text(pruned_tree_reg, pretty=0)
+
+x0 <- data.frame(
+  company = factor(c("Google"), levels=levels(mydata$company)),
+  yearsofexperience = c(10),
+  yearsatcompany = c(10),
+  gender = factor(c("Female"), levels=levels(mydata$gender)),
+  Race = factor(c("Asian"), levels=levels(mydata$Race)),
+  Education = factor(c("PhD"), levels=levels(mydata$Education))
+)
+
+salary <- predict(pruned_tree_reg, x0)
+print(salary)
+
+```
+
+Predicted salary from the pruned tree is `r salary`
+
+### Part E
+```{r question_1_part_e}
+
+set.seed(763)
+dsindex <- sample(1:nrow(mydata), 4000)
+dstrain <- mydata[dsindex, ]
+dstest <- mydata[-dsindex, ]
+
+tree_reg_train <- tree(totalyearlycompensation~., data = dstrain)
+
+tree_train_cv <- cv.tree(tree_reg_train)
+plot(tree_train_cv, type="b")
+
+plot(tree_reg_train)
+text(tree_reg_train, pretty=0)
+
+salary_train <- predict(tree_reg_train, x0)
+print(salary_train)
+
+
+
+```
+
+Based on CV, there is no need to prune the original tree made from the training set. 
+  
+Predicted salary from the tree made on the training set is $`r salary_train`
+
+### Part F
+```{r question_1_part_f, warning=FALSE}
+
+RSS <- numeric(length(dstest$totalyearlycompensation))
+for (i in 1:length(dstest$totalyearlycompensation)){
+  RSS[i] <- (dstest[i,2] - predict(tree_reg_train, newdata=dstest[i,]))^2
+}
+
+est_MSE <- sum(RSS)/(length(RSS))
+print(est_MSE)
+
+```
+
+Estimated MSE from test set is: `r est_MSE`  
+CV MSE estimate is: `r tree_cv$dev[2]/length(mydata$totalyearlycompensation)`   
+   
+The CV MSE estimate from part C is close to the test MSE.
+
+## Question 2
+82.15451 is a more believable estimate for long-run MSE because during prediction, when the newdata argument isn't passed, the predict function will re-sample from the training data set to make a "new" dataset, however, if the newdata argument is passed, this tells the predict function it doesn't have to make a "new" dataset and uses the data directly. Therefore, in the last line it is calculating the MSE based on training data and is why the reported MSE is below the first 2 estimates (and is being under-estimated) because it used data the model was trained on, however, in the 2nd calculation of MSE where the newdata argument is passed, is a more accurate estimate of MSE. 
+
+## Question 3
+```{r question_3_data_setup}
+
+set.seed(4)
+insurance_data <- read.csv("insurance.csv", stringsAsFactors=TRUE)
+
+data_randomized <- sample(insurance_data)
+
+d_train <- data_randomized[1:(2*length(data_randomized$charges)/3),]
+d_test <- data_randomized[(2*length(data_randomized$charges)/3+1):(length(data_randomized$charges)),]
+
+```
+### Linear Model
+```{r question_3_linear}
+
+# set.seed(4)
+# insurance_data <- read.csv("insurance.csv", stringsAsFactors=TRUE)
+# 
+# data_randomized <- sample(insurance_data)
+# 
+# d_train <- data_randomized[1:(2*length(data_randomized$charges)/3),]
+# d_test <- data_randomized[(2*length(data_randomized$charges)/3+1):(length(data_randomized$charges)),]
+
+lm_insu_reg <- lm(charges~., data=d_train)
+summary(lm_insu_reg)
+
+par(mfrow = c(2, 2))
+plot(lm_insu_reg)
+par(mfrow = c(1, 1))
+
+cvlm <- list()
+msecv <- NA
+for(i in 1:nrow(d_train)){
+  cvlm[[i]] <- lm(charges~., data=d_train[-i,])
+  msecv[i] <- (predict(cvlm[[i]], newdata=d_train[i,]) - d_train$charges[[i]])^2
+}
+lm_cv_MSE <- mean(msecv)
+sprintf("CV MSE estimate for linear model on training data: %s", round(lm_cv_MSE, digits=3))
+
+predicted_vals_test <- predict(lm_insu_reg, newdata = d_test)
+lm_test_MSE <- mean((d_test$charges - predicted_vals_test)^2)
+sprintf("MSE estimate for linear model on testing data: %s", round(lm_test_MSE, digits=3))
+```
+
+Based on the regression plots, the residuals don't seem independent or normally distributed or have constant variance which violate many of the assumptions necessary to fit a linear model. 
+
+### Lasso
+```{r question_3_lasso, warning=FALSE}
+
+x <- as.matrix(d_train[, -2])
+y <- as.vector(d_train[, 2])
+
+
+lasso_reg <- cv.glmnet(x,y, alpha = 1, lamda = lambda_values)
+plot(lasso_reg)
+lasso_cv_mse <- min(lasso_reg$cvm)
+print(lasso_cv_mse)
+best_lasso_reg <- glmnet(x, y, alpha = 1, lambda = lasso_reg$lambda.min)
+
+predicted_vals_test <- predict(best_lasso_reg, newx = as.matrix(d_test[,-2]))
+lasso_test_MSE <- mean((d_test$charges - predicted_vals_test)^2)
+sprintf("MSE estimate for Lasso regression on testing data: %s", round(lasso_test_MSE, digits=3))
+
+```
+
+
+
+### Trees
+```{r question_3_trees}
+# set.seed(4)
+# insurance_data <- read.csv("insurance.csv", stringsAsFactors=TRUE)
+# 
+# data_randomized <- sample(insurance_data)
+# 
+# d_train <- data_randomized[1:(2*length(data_randomized$charges)/3),]
+# d_test <- data_randomized[(2*length(data_randomized$charges)/3+1):(length(data_randomized$charges)),]
+
+tree_insu_reg <- tree(charges~., data = d_train)
+
+set.seed(51341)
+tree_insu_cv <- cv.tree(tree_insu_reg)
+plot(tree_insu_cv, type="b") 
+print("No pruning needed")
+
+tree_cv_MSE <- min(tree_insu_cv$dev)/length(insurance_data$charges)
+sprintf("Tree CV MSE estimate based on training data: %s", round(tree_cv_MSE,digits=3)) # Tree CV MSE Estimate
+
+plot(tree_insu_reg)
+text(tree_insu_reg, pretty=0)
+
+summary(tree_insu_reg)
+
+predicted_vals_test <- predict(tree_insu_reg, newdata = d_test)
+tree_test_MSE <- mean((d_test$charges - predicted_vals_test)^2)
+
+sprintf("Tree MSE estimate based on testing data: %s", round(tree_test_MSE,digits=3))
+```
+
+### Random Forest
+```{r question_3_random_forest}
+
+# set.seed(4)
+# insurance_data <- read.csv("insurance.csv", stringsAsFactors=TRUE)
+# 
+# data_randomized <- sample(insurance_data)
+# 
+# d_train <- data_randomized[1:(2*length(data_randomized$charges)/3),]
+# d_test <- data_randomized[(2*length(data_randomized$charges)/3+1):(length(data_randomized$charges)),]
+
+RF_insu_reg <- randomForest(charges~., data=d_train, mtry=4, importance=TRUE)
+print(RF_insu_reg)
+varImpPlot(RF_insu_reg)
+RF_cv_MSE <- RF_insu_reg$mse[500]
+sprintf("Random forest MSE estimate based on OOB estimates from training data: %s",RF_cv_MSE)
+
+predicted_vals_test <- predict(RF_insu_reg, newdata = d_test)
+RF_test_MSE <- mean((d_test$charges - predicted_vals_test)^2)
+
+sprintf("Tree MSE estimate based on testing data: %s", round(RF_test_MSE,digits=3))
+```
+
+### Boosting
+```{r question_3_boosting}
+
+# set.seed(4)
+# insurance_data <- read.csv("insurance.csv", stringsAsFactors=TRUE)
+# 
+# data_randomized <- sample(insurance_data)
+# 
+# d_train <- data_randomized[1:(2*length(data_randomized$charges)/3),]
+# d_test <- data_randomized[(2*length(data_randomized$charges)/3+1):(length(data_randomized$charges)),]
+
+
+boost_insu_reg <- gbm(charges~., distribution="gaussian", data=d_train, n.trees=5000, interaction.depth=4, shrinkage = 0.001)
+
+# Create a training control object for cross-validation
+ctrl <- trainControl(method = "cv", number = 20)  # 5-fold cross-validation
+
+# Use the train function from caret for cross-validation
+cv_results <- train(charges ~ ., data = d_train, method = "gbm", trControl = ctrl, verbose = FALSE)
+
+# Access the cross-validated error values
+boost_cv_MSE <- mean(cv_results$results$RMSE^2)
+sprintf("Boosted CV MSE estimate based on training data: %s",boost_cv_MSE)
+
+predicted_vals_test <- predict(boost_insu_reg, newdata = d_test)
+boost_test_MSE <- mean((d_test$charges - predicted_vals_test)^2)
+sprintf("Boosted MSE estimate based on testing data: %s",boost_test_MSE)
+
+```
+  
+
+| Model | CV MSE | Test MSE |
+|:----|:-----:|:-----:|
+|Linear Model| `r lm_cv_MSE` | `r lm_test_MSE` |
+|Lasso| `r lasso_cv_mse`| `r lasso_test_MSE`|
+|Trees | `r tree_cv_MSE` | `r tree_test_MSE`|
+|Random Forest | `r RF_cv_MSE` | `r RF_test_MSE` |
+|Boosting | `r boost_cv_MSE` | `r boost_test_MSE`|   
+     
+Based on the above metrics for test MSE, the best model to choose based on sole prediction performance is the Boosted model because it gives the lowest test MSE however the Random Forest has the lowest CV MSE estimate.   
+
+If I was consulting for an insurance company, I would choose the tree model because it's easier to interpret and the performance is not that much worse than the boosted model. A tree is very dependent on the training data sample and so we expect it to perform worse when compared to other models such as the random forest or boosted model. 
+

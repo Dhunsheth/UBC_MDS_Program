@@ -1,0 +1,85 @@
+The idea of bootstrapping is to replace the population by the given 
+sample Then resamples are taken from this population For each resample a 
+sample mean can be computed The bootstrap standard error estimate is the 
+standard deviation of this collection of sample means For this problem 
+we can calculate an explicit formula for this bootstrap standard error 
+It should be emphasized that this discussion has centered on a 
+calculation that is unnecessary Under the assumptions given here the 
+standard error for the mean should be calculated in the traditional way 
+However the bootstrap idea illustrated here can be applied in many 
+examples where the traditional method is inapplicable or complicated 
+Note that we have two levels of uncertainty now  The original sample 
+mean is an uncertain estimate of the population mean  The measure of 
+its error can be well approximated by the bootstrap standard error 
+which in turn can be estimated by simulation  Once the original 
+sample has been selected one cannot adjust the first level of error  
+The second level of error can of course be controlled by choosing R 
+large enough The law of large numbers implies that the simulated 
+estimate will converge in probability to the exact bootstrap estimate 
+if R increases to infinity It should be emphasized that this 
+discussion has centered on a calculation that is unnecessary  Under the 
+assumptions given here the standard error for the mean should be 
+calculated in the traditional way However the bootstrap idea 
+illustrated here can be applied in many examples where the traditional 
+method is inapplicable or complicated As we will see there are many 
+methods of computing bootstrap confidence intervals Each method 
+originated in an attempt to attain greater accuracy  In terms of 
+accuracy there are two basic methods which give a first order 
+approximation  We saw one of these methods in the previous section:
+ the basic method in the boot package  The other method the 
+percentile method in the boot package will be presented now
+This is a very strong condition which is not nearly always true  The
+required transformation is a variance stabilizing normalizing
+transformation note that it is not always possible to
+simultaneously stabilize a variance and normalize
+As we will see this basic consistency requirement does not always
+hold  We will see some simple examples where it does not hold.
+When this requirement does hold the confidence intervals that are
+produced using the bootstrap will tend to be reliable especially
+for large sample sizes  For small samples the quality of bootstrap
+confidence intervals may be questionable even when this asymptotic
+result can be shown to hold  This is of course, because this
+consistency result relates to large sample behaviour in the same
+way as the central limit theorem  To study small sample behaviour
+we often resort to simulation
+The purpose of this section is to provide a tiny sample of the results
+that have been obtained over the past quarter century  We will show how
+some of the simplest cases can be handled We will then provide examples
+of bootstrap inconsistency  In some cases there are strategies that can
+be adopted to regain consistency though often at the expense of
+efficiency
+The probability theory that you have studied in previous courses is almost
+enough to obtain some of the simplest results  However there are a few
+theorems which you may not yet have encountered which will be needed
+Therefore we start this section with a survey of the necessary background
+theory
+The
+Glivenko Cantelli theorem gives a strong justification for this
+Essentially it says that the maximal difference between the
+two distribution functions converges to 0 with probability 1,
+as the sample size n increases  This result follows from a
+strong law of large numbers to be stated below but we have started
+with it because it begins to suggest what might make a bootstrap
+work and how a bootstrap might fail
+By itself the Glivenko Cantelli theorem does not give sufficient
+grounds for bootstrap consistency since it talks about the
+distribution function of the data not the sampling distribution
+function of the estimator  In order for the bootstrap
+sampling distribution function
+The central limit theorem is often a focal point of mathematical
+statistics courses  Like the strong law there are actually
+many central limit theorems
+One of the most frequently quoted
+versions involves sums of independent and identically distributed
+random variables having a finite variance  The theorem states
+that the distribution of the sum properly normalized, converges to a
+standard normal distribution as the sample size increases  The
+theorem is of the form
+The proof of this theorem is usually based on a continuity theorem
+involving characteristic functions  One shows that the characteristic
+function for the normalized sum of random variables converges to
+the characteristic function of a standard normal random variable
+Along the way a Taylor series approximation to the log of
+the characteristic function is used  The
+terms in this Taylor series are multiples of powers of 
+

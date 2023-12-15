@@ -1,0 +1,150 @@
+---
+title: "Data-581 Lab 1"
+author: "Dhun Sheth"
+date: "2023-11-21"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(MPV) # loads MPV
+library(boot)
+
+
+SEcalculator <- function(x, FUN, N = 1000) {
+  xResample <- numeric(N)
+  for (i in 1:N) {
+    xResample[i] <- FUN(sample(x, size = length(x), replace=TRUE))
+    }
+  sd(xResample)
+}
+
+EstAndSE <- function(x, FUN, N = 1000) {
+  xResample <- numeric(N)
+  for (i in 1:N) {
+    xResample[i] <- FUN(sample(x, size = length(x), replace=TRUE))
+  }
+  list(estimate = FUN(x), SE = sd(xResample))
+}
+
+
+```
+
+## Question 1
+### Part A
+```{r question_1_part_a}
+
+SEcalculator <- function(x, FUN, N = 1000) {
+  xResample <- numeric(N)
+  for (i in 1:N) {
+    xResample[i] <- FUN(sample(x, size = length(x), replace=TRUE))
+    }
+  sd(xResample)
+}
+
+changes <- diff(LakeHuron)
+mean_standard_error_function <- SEcalculator(changes, mean)
+print(mean_standard_error_function)
+
+mean_usual_standard_error <- sd(changes)/sqrt(length(changes))
+print(mean_usual_standard_error)
+
+```
+### Part B
+```{r question_1_part_b}
+
+var_standard_error_function <- SEcalculator(changes, var)
+print(var_standard_error_function)
+
+```
+## Question 2
+```{r question_2}
+
+q90 <- function(x, N=1000){
+  xResample <- numeric(N)
+  for (i in 1:N) {
+    xResample[i] <- quantile(sample(x, size = length(x), replace=TRUE), 0.9)
+  }
+  list(estimate = quantile(x, 0.9), SE = sd(xResample))
+}
+
+quant_90 <- q90(changes)
+print(quant_90)
+
+```
+## Question 3
+### Part A
+
+Because X1 and X2 are independent, their joint density is a product of their
+individual densities. 
+
+Likelihood function for p:
+$L(p)=\prod_{i = 1}^{n} [p^(x1_i+x2_i)*(1-p)^(2-x1_i-x2_i)]$
+
+### Part B
+```{r question_3_part_b}
+
+p <- c(0.2, 0.7, 0.9)
+x1 <- 1
+x2 <- 0
+pdf_vals <- ((p^x1)*((1-p)^(1-x1)))*((p^x2)*((1-p)^(1-x2)))
+print(pdf_vals)
+```
+
+Maximum likelihood estimate for p is 0.7, because that gives the largest 
+likelihood function value.
+
+### Part C
+For X1=1 and X2=0, the likelihood function simplifies to:
+$[p^1*(1-p)^0]*[p^0*(1-p)^1] = p^1*(1-p)^1 = p-p^2$
+
+then, $\frac{\partial }{\partial p} p-p^2 = -2p+1$
+
+then set this to 0 to find maximum: $-2p+1 = 0 => p=1/2$
+
+Thus, maximum likelihood estimate of p, if p ranges from (0,1), would be p=0.5
+
+## Question 6
+### Part A
+```{r question_6_part_a}
+
+# help(p13.2)
+
+```
+
+Binary logistic regression makes sense because the response variable (y), 
+home ownership is either a 0 or 1.
+
+### Part B, C
+```{r question_6_part_b}
+
+p13.glm <- glm(formula = y ~ x, family = binomial, data = p13.2)
+
+print(p13.glm)
+
+print(is.list(p13.glm))
+
+
+```
+
+### Part D
+
+logit(x) = `r p13.glm$coefficients[[1]]` + `r p13.glm$coefficients[[2]]` * x
+
+## Question 7
+```{r question_7}
+
+set.seed(123)
+x <- c(12, 14, 14, 15, 18, 21, 25, 29, 32, 35)
+
+#define function to return median
+myMedian <- function(x,i){median(x[i])}
+
+result <- boot(x, myMedian, 200)
+print(result)
+
+```
+
+Boot SE: 4.56  
+SEcalculator SE: `r round(SEcalculator(x, myMedian), 2)`  

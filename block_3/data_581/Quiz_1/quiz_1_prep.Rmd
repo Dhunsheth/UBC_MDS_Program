@@ -1,0 +1,198 @@
+---
+title: "Data-581 Quiz prep"
+author: "Dhun Sheth"
+date: "2023-12-03"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(MPV)
+library(MASS)
+library(randomForest)
+```
+
+# Lecture 1: Simluations and Bootstrapping
+```{r lecture_1_nonparametric_bootstrapping}
+
+# Non-parametric Bootstrapping
+Before <- c(197, 203, 201, 202, 204, 205, 203, 203, 205, 201)
+After <- c(199, 198, 199, 202, 198, 199, 199, 198, 197, 199)
+diff <- After - Before
+x10000 <- replicate(10000, mean(sample(diff, size = 10, replace= TRUE)))
+# hist(x10000)
+
+SE <- sd(x10000)
+c_95 <- qnorm(1-0.025) # 95% CI critical value
+ci_95 <- mean(x10000) + c(-1*c_95,c_95)*SE # using formula: mu +- critical_value*SE
+CI_95 <- quantile(sort(x10000),probs=c(0.025,0.975)) # using quantiles from sample
+
+
+```
+
+
+# Lecture 2: Maximum Likelihood Estimate (MLE) and using bootstrap and MLE to evaluate model fitness
+```{r lecture_2_poisson_regression}
+# maximum likelihood estimate
+
+y.glm <- glm(count~distance, family = poisson, data = cigbutts)
+a <- coef(y.glm)[1]
+b <- coef(y.glm)[2]
+# coef(y.glm)
+
+# generated Poisson probability density with the obtained parameters from our data.
+count<-cigbutts$count
+distance <- cigbutts$distance
+log_likelihoodValues <- log(dpois(count, lambda = exp(a + b*distance)))
+log_likelihoodValues
+#  how do we know what kind of value would be unacceptably small?
+# => use bootstrapping 
+
+# we apply the above idea to the fitted model, and compare the
+# observed likelihood contributions from the observed data with
+# distributions of likelihood contributions based on simulations from the
+# fitted model.
+
+# N <- 40
+# x = distance, y = cigbutts
+## FOR POISSON REGRESSION
+simloglike <- function(x, y.glm, N=40) {
+ll <- matrix(0, ncol=length(x), nrow=N)
+for (j in 1:N) {
+    y <- simulate(y.glm)$sim_1
+    sim.glm <- glm(y~x, family = poisson) # family will change accordingly
+    a <- coef(sim.glm)[1]
+    b <- coef(sim.glm)[2]
+    log_likelihoodValues <- log(dpois(y, lambda = exp(a + b*x)))
+    ll[j, ] <- log_likelihoodValues
+  }
+  ll <- data.frame(ll)
+  names(ll) <- ""
+  ll # this containes the MLE for each observation from all the simulated}
+}
+
+ciglike <- with(cigbutts, simloglike(distance, y.glm))
+par(mar=c(1, 4, .1,.1))
+boxplot(ciglike, ylim=range(c(log_likelihoodValues,ciglike)))
+points(log_likelihoodValues, pch=16, col=2)
+```
+
+```{r lecture_2_part_b_logistic_regression}
+
+## FOR LOGISTIC REGRESSION
+y.glm <- glm(y~x, family = binomial, data = p13.1)
+a <- coef(y.glm)[1]
+b <- coef(y.glm)[2]
+llikelihoodValues <- with(p13.1, log(dbinom(y, 1, prob = exp(a + b*x)/(1+exp(a + b*x)))))
+
+# bootstrap simulation function
+simloglike <- function(x, y.glm, N=10) {
+ll <- matrix(0, ncol=length(x), nrow=N)
+for (j in 1:N) {
+  y <- simulate(y.glm)$sim_1
+  x <- p13.1$x
+  sim.glm <- glm(y~x, family = binomial)
+  a <- coef(sim.glm)[1]
+  b <- coef(sim.glm)[2]
+  loglikelihoodValues <- log(dbinom(y, 1, prob = exp(a + b*x)/(1+exp(a + b*x))))
+  ll[j, ] <- loglikelihoodValues
+  }
+  ll <- data.frame(ll) #names(ll) <- as.character(x)
+  names(ll) <- ""
+  ll
+}
+# simulating bootstrapped loglikelihood values
+missilelike <- with(p13.1, simloglike(x, y.glm, N=20))
+
+# graphing simulated vs observed values
+par(mar=c(1, 4, .1,.1))
+boxplot(missilelike, ylim=range(c(llikelihoodValues,missilelike)))
+points(llikelihoodValues, pch=16, col=2)
+
+
+```
+
+
+# Lecture 3: Multiple Regression Models (QR Decomp, param. est. with qr decom, prediction interval (PI), and coeff. CI)
+```{r lecture_3}
+
+# setup design matrix X and y.
+n <- nrow(table.b4) # number of rows (n) of design matrix
+p <- ncol(table.b4[-1]) + 1 # number of columns (p) of design matrix -- remove y column and add 1's col for intercept
+X <- table.b4[,-1] # remove "y" column to form model matrix
+X1 <- rep(1, n) # column for intercept
+X <- cbind(X1, X) # append 1's to create full model matrix
+y <- table.b4[, 1]
+
+# QR decomp
+QR <- qr(X) # QR decomposition of X
+Q <- qr.Q(QR, complete=TRUE) # complete=TRUE gives Q1 & Q2
+R <- qr.R(QR, complete=TRUE)
+Q1 <- Q[, 1:p]
+Q1y <- t(Q1)%*%y
+U <- qr.R(QR) # if you want all of R, use complete=TRUE
+
+# parameter estimate
+betahat <- solve(U, Q1y)
+
+# SSE: residual sum of squares
+Q2 <- Q[, -(1:p)]
+Q2y <- t(Q2)%*%y
+SSE <- t(Q2y)%*%Q2y
+# variance estimate -> MSE
+MSE <- SSE/(n-p)
+# standard deviation estimate
+sqrt(MSE)
+
+
+### Estimating mean response at X0
+#  mean response or predicted y
+x_point <- c(4.5, 1.0, 2.3, 1.2, 1.0, 6.0, 3.0, 40.0, 0.0)
+x0 <- c(1, x_point)
+Ey.hat <- x0%*%betahat # predicted y -> mean response
+
+# standard error for mean response at specific point x0
+UTx0T <- solve(t(U), x0)
+SEPred<- sqrt(MSE)*sqrt(1+ sum(UTx0T^2))
+SEPred
+
+# prediction interval for mean response
+critical_value <- qt(c(.025, .975), df = n-p)
+PI <- Ey.hat + critical_value*SEPred
+# PI <- c(Ey.hat - qt(.975, df = n - p)*SEPred, Ey.hat + qt(.975, df = n - p)*SEPred)
+
+
+### Confidence interval for regression coefficients betahat
+Cii <- sqrt(diag(solve(t(U)%*%U)))
+SEii <- Cii*as.numeric(sqrt(MSE))
+SEii
+# 95% confidence interval for the 4th regression coefficient (β3) is
+betahat[4] + SEii[4]*qt(c(.025, .975), df = n-p)
+
+
+```
+
+
+# Lecture 4: Generalized linear models
+```{r lecture_4}
+
+# cigbutts example for Poisson regression (counts)
+y <- cigbutts$count
+d <- cigbutts$distance
+cig.glm <- glm(y~d, family = poisson)
+# summary(cig.glm)
+# coef(cig.glm)
+# plot(cigbutts)
+# x_temp <- 0:3500
+# lines(x_temp, predict(cig.glm, newdata=data.frame(d = x_temp), type = "response"))
+
+# missle example for logistic regression (binary 0/1 values)
+p13.glm <- glm(y~x, data = p13.1, family = binomial)
+# summary(p13.glm)
+# coef(p13.glm)
+
+# plot(p13.1, xlab = "speed", ylab = "success/fail", pch=16)
+# newspeeds <- 200:500 # predict at these target speeds
+# lines(newspeeds, predict(p13.glm, newdata=data.frame(x = newspeeds), type = "response"))
+
+```

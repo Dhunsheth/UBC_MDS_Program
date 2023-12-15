@@ -1,0 +1,204 @@
+---
+title: "<center>DATA-543 Assignment 1</center>"
+author: "<center>Dhun Sheth | Rui Mao | Andrew Sarracini | Somya Nagar</center>"
+date: "<center>2023-11-22</center>"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Question 1
+### Part A
+i) all students enrolled in DATA543 at the time question was asked.  
+
+ii) Proportion of students in DATA543 who have a hometown in Canada.  
+
+iii) 107 students  
+
+iv) Population is 608 students (sampled population size is all students in professor Green's class who have a clicker - if all students had a clicker then it would be 176 students)
+
+v) 55/107 = `r 55/107`  
+
+
+### Part B
+The self-selection sampling protocol was used - this is a non-probability 
+sampling protocol. A self-selection sampling protocol was used because the
+units must choose themselves, ie. the students had the ability to answer the 
+question or not by submitting their answer via the clicker device.
+
+### Part C
+i) The sampling frame error is the difference in attributes of interest between the sampling 
+frame and target population. The sampling frame is the answers from the clicker device. Purchasing the
+clicker may be optional and many students may not have purchased this device.  
+  
+ii) Sample error occurs when their is a difference of representativness between
+the sample and those who responded. Here, some students may not want to disclose
+that their hometown is not Canada and thus do not answer the question, versus
+those that choose to respond.  
+
+iii) There is some ambiguity in the question "if their hometown is Canada" 
+because there could be people who were born outside of Canada but were primarily 
+raised in a town in Canada - would such people answer this as yes or no - it 
+would depend on their interpretation and this can cause measurement error. 
+
+## Question 2
+### Part A
+```{r question_2_part_a}
+
+data <- read.csv("Podcasts.csv")
+pop_size = length(data$id)
+mu_min = mean(data$duration)
+variance = var(data$duration)
+total_hrs = round(pop_size*mu_min/60,2)
+
+```
+
+i) Population Size: `r pop_size`
+ii) Mean in min: `r mu_min`
+iii) Variance: `r variance` 
+iv) Total: `r total_hrs` (calculated using N*mu - not summing all duration vals)
+
+### Part B
+
+```{r question_2_part_b}
+
+set.seed(543)
+my.sample <- sample(data$duration, 30)
+print(head(my.sample, 5)) # i)
+mu_sample <- mean(my.sample) # ii)
+print(mu_sample)
+var_sample <- var(my.sample) # ii)
+print(var_sample)
+
+n <- length(my.sample)
+N <- pop_size
+alpha = 0.05
+cval <- qnorm(alpha/2, lower.tail = FALSE)
+standard_error_mu = sqrt((1 - n/N)*(var_sample/n))
+
+mu_CI.l <- mu_sample - cval*standard_error_mu
+mu_CI.u <- mu_sample + cval*standard_error_mu
+
+print(round( c(mu_CI.l, mu_CI.u),2)) # iii)
+
+pop_total_sample_estimate <- N*mu_sample/60
+pop_total_standard_error <- N*standard_error_mu/60
+
+pop_total_CI.l <- pop_total_sample_estimate - cval*pop_total_standard_error
+pop_total_CI.u <- pop_total_sample_estimate + cval*pop_total_standard_error
+
+print(round( c(pop_total_CI.l, pop_total_CI.u),2)) # iv)
+
+```
+
+v) The confidence interval calculated in part iv implies that if we were to take
+repeated samples and calculate the confidence interval again, 95% of the 
+intervals would contain the true population total.
+
+## Question 3
+### Part A
+```{r question_3_part_a}
+
+options(scipen = 999)
+options(digits = 7)
+
+N_h <- c(44644808,  52546066, 94590118, 59326414)
+N <- sum(N_h)
+W_h <- N_h/N
+trump <- c(10108658, 15559072,  25867401,  11444729)
+clinton <- c( 13652408, 14184562,  21967373, 16040609)
+n_h <- trump + clinton
+n <- sum(n_h)
+w_h <- n_h/n
+pi_h <- trump/n_h
+f_h <- n_h/N_h
+
+```
+
+| $Region$| $N_h$ | $W_h$ |$n_h$ |$w_h$ |$\pi_h$ |
+|---------|-----|-------|-------|-------|-------|
+| Northeast | `r N_h[1]`|`r W_h[1]`|`r n_h[1]`| `r w_h[1]`|`r pi_h[1]`|
+| Midwest | `r N_h[2]`|`r W_h[2]`|`r n_h[2]`| `r w_h[2]`|`r pi_h[2]`|
+| South | `r N_h[3]`|`r W_h[3]`|`r n_h[3]`| `r w_h[3]`|`r pi_h[3]`|
+| West | `r N_h[4]`|`r W_h[4]`|`r n_h[4]`| `r w_h[4]`|`r pi_h[4]`|
+
+
+### Part B
+This can be done by comparing the population stratum weight of the h'th region
+to the sample stratum weight of the h'th region.
+
+Referencing the table from Part A  
+
+**Northeast:** sample is 0.184 vs 0.178 so this is over-represented.    
+**Midwest:** sample is 0.231 vs 0.209 so this is over-represented.  
+**South:** sample is 0.371 vs 0.377 so this is under-represented.  
+**West:** sample is 0.213 vs 0.236 so this is under-represented.  
+
+### Part C
+Based on the strata proportions, although some regions have similar proportions, 
+there are also regions which are different - like Midwest vs. West which has proportion `r pi_h[2]` vs. `r pi_h[4]`.  
+
+Another stratification structure which could be considered is using buckets of
+voter age. Say voters between 20-29, 30-39..., or splitting based on race or household income or urban vs. rural. 
+
+### Part D
+```{r question_3_part_d, include=FALSE}
+
+options(scipen = 999)
+options(digits = 1)
+```
+For each stratum to achieve proportional allocation, the sample stratum weight
+must be the same as the population stratum weight. 
+
+**Northeast:** # of voters = `r W_h[1]*n` (rounded value because we have people: `r round(W_h[1]*n)`)   
+**Midwest:** # of voters = `r W_h[2]*n`  (rounded value because we have people: `r round(W_h[2]*n)`)   
+**South:** # of voters = `r W_h[3]*n`  (rounded value because we have people: `r round(W_h[3]*n)`)  
+**West:** # of voters = `r W_h[4]*n`  (rounded value because we have people: `r round(W_h[4]*n)`)  
+
+### Part E
+```{r question_3_part_e, include=FALSE}
+
+options(scipen = 999)
+options(digits = 3)
+```
+Pi_hat is the 'raw' sample average. The proportion of voters who would vote for Trump if they all voted.  
+
+The estimate for pi would be calculated as follows:
+$\widehat{\pi} = \sum \frac{n_h}{n} \widehat{\pi}_h$ = `r sum((n_h/n)* pi_h)*100`%
+
+### Part F
+The stratified sample estimate is $\widehat{\pi}_{s} = \sum W_h \widehat{\pi}_h$ = `r sum(W_h *pi_h)*100`%
+
+### Part G
+They are different because Part E used the sampling weights $w_h=n_h/n$, whereas the stratified proportion in
+part F used the info about the population-level stratum weights by using $W_h=N_h/N$. 
+
+### Part H
+```{r question_3_part_h}
+
+options(scipen = 999)
+options(digits = 8)
+
+
+alpha = 0.05
+Zval  = qnorm(1-alpha/2) 
+
+# Pi_hat for part E
+pi_hat <- sum(n_h/n*pi_h)
+var_pi_hat <- (1-n/N)*pi_hat*(1-pi_hat)/(n-1)
+SE_pi_hat <- sqrt(var_pi_hat)
+# CI for part E
+pi_hat_ci = pi_hat + c(-1,+1) * Zval * SE_pi_hat
+print(round(pi_hat_ci*100,3))
+
+
+# CI for Pi_strata - Part F
+pi_strata_hat <- sum(W_h *pi_h)
+var_pi_strata <- sum((1-n/N)*(W_h)^2*pi_h*(1-pi_h)/(n_h-1))
+SE_var_strata <- sqrt(var_pi_strata)
+
+pi_strata_ci <- pi_strata_hat + c(-1,+1) * Zval * SE_var_strata
+print(round(pi_strata_ci*100,3))
+```

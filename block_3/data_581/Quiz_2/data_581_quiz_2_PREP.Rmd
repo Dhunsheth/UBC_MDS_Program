@@ -1,0 +1,160 @@
+---
+title: "DATA-581 Quiz 2 Prep"
+author: "Dhun Sheth"
+date: "2023-12-10"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(HMM)
+```
+
+## Simulating 1000 movements of the mouse (MC example - Lecture 5)
+```{r}
+
+Ntransitions <- 1000 # number of transitions
+P <- matrix(c(0, 1, 0, 0,
+              0.5, 0, 0.5, 0,
+              0, 0.5, 0, 0.5,
+              0, 0, 1, 0), nrow = 4, byrow = TRUE) # P is the transition matrix
+X <- numeric(Ntransitions) #initializing the chain
+current.state <- 1 # initial state X_0 = 1
+for (t in 1:Ntransitions) {
+  current.state <- sample(1:4, size = 1, prob = P[current.state, ])
+  X[t] <- current.state
+}
+
+table(X) # counts in each state
+table(X)/Ntransitions # probability being in each state after 1000 moves
+
+```
+
+## Calculate stationary matrix (Lecture 6)
+```{r}
+P33<- matrix(c(0, 0.4, 0.6,
+               0.5, 0, 0.5,
+               0.25, 0, 0.75), nrow = 3, byrow = TRUE)
+
+A <- t(P33) - diag(rep(1,3))
+A <- rbind(A, rep(1,3))
+RHS <- c(rep(0,3), 1)
+qr.solve(A, RHS) # no longer a square system
+
+
+```
+
+
+## Simulating from an infinite MC (time-reversible) (lec 6 slide 28/29)
+```{r}
+
+pi.fun <- function(i) {
+  out <- 0
+  if (i > 0) out <- 1/(i+1)^4
+  out
+}
+
+N <- 20000
+X <- numeric(N)
+current.state <- 50 # initialize the Markov chain
+for (n in 1:N) {
+  i <- current.state
+  P <- c(min(pi.fun(i-2)/pi.fun(i), 1), 
+         min(pi.fun(i-1)/pi.fun(i), 1),
+         min(pi.fun(i+1)/pi.fun(i), 1),
+         min(pi.fun(i+2)/pi.fun(i), 1))/6
+  P0 <- 1 - sum(P)
+  P <- c(P[1:2], P0, P[3:4])
+  transition <- sample(seq(-2,2,1), size = 1, prob = P)
+  current.state <- current.state + transition
+  X[n] <- current.state
+}
+n <-1000
+observedDist <- table(X[-c(1:n)]) # removing first 1000 observations "burn-in period"
+pi <- observedDist/(N-n)
+pi
+
+```
+
+## Given some distribution for pi (slide 37)
+```{r}
+
+posterior.fun <- function(i, x) {
+  out <- 0
+  if (i >= x) {
+    out <- dpois(i, lambda = 20) * dbinom(x, size = i, prob = .5)
+    }
+  out
+}
+
+pi.fun <- function(i) {
+  posterior.fun(i, x=5)
+}
+
+Ntransitions <- 20000
+X <- numeric(Ntransitions)
+current.state <- 40 # initialize the Markov chain
+for (n in 1:Ntransitions) {
+  i <- current.state
+  P <- c(min(pi.fun(i-2)/pi.fun(i), 1),
+         min(pi.fun(i-1)/pi.fun(i), 1),
+         min(pi.fun(i+1)/pi.fun(i), 1),
+         min(pi.fun(i+2)/pi.fun(i), 1))/6
+  P0 <- 1 - sum(P)
+  P <- c(P[1:2], P0, P[3:4])
+  transition <- sample(seq(-2,2,1), size = 1, prob = P)
+  current.state <- current.state + transition
+  X[n] <- current.state
+}
+observedDist <- table(X[-c(1:1000)])
+pi <- observedDist/(N-1000)
+
+par(mfrow=c(1,2))
+theoryDist <- 20000*dpois(0:30, lambda = 20)
+names(theoryDist) <- 0:30
+barplot(theoryDist, main = "Prior")
+barplot(observedDist, main = "Posterior")
+
+
+```
+
+
+## HMM Package (HMM package and Viterbi path)
+```{r}
+
+hmm <- initHMM(c("0","1"), c("0","1"), 
+               transProbs=matrix(c(1, 2, 2, 1)/3,2),
+               emissionProbs=matrix(c(3, 1, 1, 3)/4, 2))
+
+observations <- as.character(c(1, 0, 0, 0, 1, 1, 0))
+
+viterbi <- viterbi(hmm, observations)
+print(viterbi)
+
+```
+
+## [HMM] More on Viterbi and training Viterbi based on an initial guess of the transition and emission matrix (when transition and emission matrix are not known)
+```{r}
+
+P <- matrix(c(.1, .9, .2, .8), nrow=2, byrow=TRUE)
+E <- matrix(c(.75, .2, 0.05, .05, 0.4, .55), nrow=2, byrow=TRUE)
+current.state <- 1; n <- 500
+X <- numeric(n)
+Y <- numeric(n)
+for (i in 1:n) {
+  current.state <- sample(0:1, size = 1, prob = P[current.state+1,])
+  X[i] <- current.state #hidden states
+  Y[i] <- sample(0:2, size = 1, prob = E[current.state+1,])
+  #Y observed data
+}
+Y[1:5] # first few simulations of Y
+
+hmm <- initHMM(c("0","1"), c("0","1", "2"),
+               transProbs=matrix(c(.5, .5, .5, .5),2),
+               emissionProbs=matrix(c(.5, .4, .1, .8, .05, .15), 2))
+observations <- as.character(Y)
+simDataFit <- viterbiTraining(hmm, observations)
+print(simDataFit$hmm$transProbs)
+print(simDataFit$hmm$emissionProbs)
+
+```

@@ -1,0 +1,131 @@
+---
+title: "Quiz1_yourStudent_ID"
+author: "Add Your Name"
+date: "2023-12-04"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Question 1 - Multiple Choice Questions
+
+Put your answers for MC questions in the table below;
+
+MC   answer
+---  ---
+(a)           
+(b)   
+(c)   
+(d)   
+(e)    
+
+
+
+### Question 2
+
+```{r, echo = TRUE}
+sample_x <- c(78, 86, 97, 91, 83, 89, 92, 88, 79, 68)
+sample_x
+```
+
+#### part a)
+
+```{r, echo = TRUE}
+set.seed(1413) #DO NOT REMOVE THIS
+
+#your code here
+```
+
+#### part b)
+
+
+```{r, echo = TRUE}
+# add your code here
+```
+
+#### part c) 
+
+```{r, echo = TRUE}
+# add your code here
+```
+
+
+#### Question 3 
+
+Run this code before continue. note that the data is saved under the name `mydata`. 
+
+```{r, echo= TRUE}
+#install.package("mlbench") if needed
+library(mlbench)
+data("PimaIndiansDiabetes2", package = "mlbench")
+mydata <- PimaIndiansDiabetes2
+```
+
+#### part a) 
+
+Write your answer here
+
+#### part b) 
+
+```{r, echo= TRUE}
+#your code
+```
+
+#### part c)
+```{r, echo= TRUE}
+# your codes here
+```
+
+#### part d)
+
+Add your explanation here...
+
+#### part e) 
+
+```{r, echo= TRUE}
+# here your code
+```
+
+Add your explanation here: 
+
+
+#### part f) 
+
+```{r, echo= TRUE}
+#your code
+```
+Add your explanation here: 
+
+
+
+
+### Question 4:
+
+
+Run this code before continue. note that the data is saved under the name `mydata`. 
+
+```{r, echo= TRUE}
+attach(mtcars)
+# you can select a column of a dataset by $ operator, for example
+# wt_col <- mtcars$wt
+```
+
+#### part a
+
+Add your answer here.
+
+#### part b
+
+```{r, echo= TRUE}
+#your code
+```
+
+#### part c
+
+```{r, echo= TRUE}
+#your code
+```

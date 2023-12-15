@@ -1,0 +1,78 @@
+---
+title: "Lab 3"
+author: "Jeff"
+date: "December 5, 2023"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Boosting
+Here is the code for the images that we saw in lecture for manually performing boosting with regression trees. Recall: some of the tree controls make this an imperfect example as eventually the loop crashes...but at least it gives you a sense of the boosting process and how it can be manually coded.
+
+First, we'll generate the data
+```{r}
+library(tree)
+set.seed(341241)
+x <- sort(runif(500, 0, 10))
+y1 <- rnorm(100, mean=1)
+y2 <- rnorm(20, mean=5, sd=3)
+y3 <- rnorm(280, mean=8)
+y4 <- rnorm(20, mean=6, sd=1.5)
+y5 <- rnorm(80, mean=4)
+dat <- cbind(x, c(y1,y2,y3,y4,y5))
+plot(dat[,1:2], xlab="X", ylab="Y")
+dat0 <- cbind(x, c(y1,y2,y3,y4,y5))
+dat <- data.frame(dat)
+colnames(dat) <- c("X", "R")
+```
+
+Now we'll set up a grid of predictor values so that we can plot things nicely as the algorithm progresses
+```{r}
+gridx <- seq(0, 10, by=0.01)
+predgrid <- rep(0, length(gridx))
+```
+
+And then initialize the model predictions to 0, set the learning rate to 0.005, followed by the actual boosting loop. Note the plot function is called (via the if statement) whenever the iteration number is divisible by 10. Also note, I'm using `fig.show='animate'` in the markdown options, which provides a GIF for the plots --- you will need to have FFmpeg installed in order to Knit this Rmd file on your computer.
+```{r, fig.show='animate',  ffmpeg.format = 'gif', dev = 'jpeg', interval=0.1}
+predobs <- rep(0, nrow(dat))
+lambda <- 0.005
+for(i in 1:700){
+  regt <- tree(R~X, data=dat, control=tree.control(nrow(dat), 2, 4, 0.001))
+  stump <- prune.tree(regt, best=2)
+  predobs <- predobs + lambda*predict(stump)
+  predgrid <- predgrid + lambda*predict(stump, newdata=data.frame(X=gridx))
+  dat$R <- dat$R - lambda*predict(stump)
+  if((i %% 10)==0){
+     plot(dat0)
+     lines(gridx, predgrid, col="red", lwd=3)
+  }
+}
+```
+
+
+Let's try out boosting with classification trees on the body data set using the `gbm` package.
+
+```{r}
+#install.packages("gbm")
+ library(gbm)
+ library(gclus)
+ data(body)
+ set.seed(45613)
+ bodyboost <- gbm(Gender~., distribution="bernoulli", data=body, n.trees=5000, interaction.depth=1)
+ table(body$Gender, predict(bodyboost, newdata=body, type="response", n.trees=5000)>0.5 )
+```
+That seems promising! But as always, we are likely overfitting. I have included R commands that setup LOOCV for the boosting model on the wine data set (results that were given in lecture). Note: it will take a while to run, so I've defaulted to `eval=FALSE` in the options.
+
+```{r, eval=FALSE}
+ data(wine)
+ cvboost <- NA
+ for(i in 1:nrow(wine)){
+ dummod <- gbm(factor(Class)~., distribution="multinomial", data=wine[-i,], n.trees=5000, interaction.depth=1)
+ cvboost[i] <- which.max(predict(dummod, n.trees=5000, newdata=wine[i,], type="response"))
+ }
+```
+
+

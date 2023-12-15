@@ -1,0 +1,234 @@
+---
+title: "Lab 4"
+author: "Jeff"
+date: "December 9, 2023"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r}
+#install.packages("glmnet")
+library(glmnet)
+```
+
+## Regularization
+Let's recreate the simulations from lecture. We assume the predictors are normally distributed (with differing means and standard deviations) and the response is assumed $Y=20 + 3X_1 - 2X_2 + \epsilon$ where epsilon is normal $(\mu=0, \sigma^2=4)$
+```{r}
+set.seed(35521)
+x1 <- rnorm(30,0,3)
+x2 <- rnorm(30,1,4)
+y <- 20 + 3*x1 - 2*x2 + rnorm(length(x1), sd=2)
+plot(y~x1+x2)
+x <- cbind(x1, x2)
+```
+
+Now we fit a standard linear model to see how close we are to estimating the true model...
+```{r}
+linmod <- lm(y~x1+x2)
+summary(linmod)
+```
+
+Now ridge regression...
+```{r}
+rrsim_d <- cv.glmnet(x, y, alpha=0)
+plot(rrsim_d$glmnet.fit, label=TRUE, xvar="lambda")
+plot(rrsim_d)
+rrsim_d$lambda.min
+```
+
+Since the minimum was determined nearly at the lower boundary of $\lambda$, it's worthwhile to try a different grid of $\lambda$ values than what the default provides...
+```{r}
+grid <- exp(seq(10, -6, length=100))
+set.seed(451642)
+rrsim <- cv.glmnet(x, y, alpha=0, lambda=grid)
+plot(rrsim$glmnet.fit, label=TRUE, xvar="lambda")
+plot(rrsim)
+rrsim$lambda.min
+```
+
+Sure enough, the minimal predict error arises from a smaller $\lambda$ than our original grid tested. We can now look at the actual model fits for the suggested values of lambda...
+```{r}
+lammin <- rrsim$lambda.min
+lam1se <- rrsim$lambda.1se
+rrsimmin <- glmnet(x,y,alpha = 0, lambda=lammin)
+rrsim1se <- glmnet(x,y,alpha = 0, lambda=lam1se)
+coef(rrsimmin)
+coef(rrsim1se)
+```
+
+Lets throw those results into a table for easy comparison...
+```{r}
+coeftab <- cbind(c(20.00,3.00,-2.00), coef(linmod), coef(rrsimmin), coef(rrsim1se))
+colnames(coeftab) <- c("TRUE", "LM", "RidgeRegMin", "RidgeReg1se")
+round(coeftab,2)
+```
+
+So ridge regression with the $\lambda$ with estimated minimum MSE from CV provides estimates closer to the true values than the standard linear model approach as well as the ridge regression with $\lambda$ within 1 standard error of the minimum. We can also run lasso using the glmnet command, the only difference is setting $\alpha=1$ instead of 0...
+```{r}
+lasim <- cv.glmnet(x, y, alpha=1, lambda=grid)
+plot(lasim$glmnet.fit, label=TRUE, xvar="lambda")
+plot(lasim)
+lammin <- lasim$lambda.min
+lam1se <- lasim$lambda.1se
+lasimmin <- glmnet(x,y,alpha = 1, lambda=lammin)
+lasim1se <- glmnet(x,y,alpha = 1, lambda=lam1se)
+coef(lasimmin)
+coef(lasim1se)
+coeftab <- cbind(c(20.00,3.00,-2.00), coef(linmod), coef(rrsimmin), coef(lasimmin))
+colnames(coeftab) <- c("TRUE", "LM", "RidgeRegMin", "LassoMin")
+round(coeftab,2)
+```
+
+Results are essentially the same between ridge regression and lasso on this simulation. This is because to approach the true model, we only need to very slightly shrink the original estimates. Furthermore, there are no useless predictors to remove in this case. Let's change that...
+
+## Useless Predictors
+Let's set up a model similar to one you would have seen in 570. A bunch of independent and useless predictors!
+
+```{r}
+set.seed(52141)
+bmat <- matrix(rnorm(50000), nrow=100)
+dim(bmat)
+y <- rnorm(100)
+bsimcv <- cv.glmnet(bmat, y, alpha=1)
+plot(bsimcv)
+plot(bsimcv$glmnet.fit, label=TRUE, xvar="lambda")
+```
+
+In this case, the lambda within 1 standard error appears to be at the boundary. So lets again manually specify a grid of lambda to see what happens...
+
+```{r}
+grid <- exp(seq(-6, -1, length=100))
+bsimcv2 <- cv.glmnet(bmat, y, alpha=1, lambda=grid)
+plot(bsimcv2)
+```
+
+Interesting! The model that removes all predictors (and thereby only models according to the intercept) has a CV estimate of the MSE within 1 standard error of the minimum predicted MSE. This is a telltale sign that there are probably no useful predictors sitting in this data set!
+
+
+## Code from the interactive app
+Heres how those 3d plots were generated. Note that it's a bit hacky, as I'm simply using points rather than a surface. I've spent a significant amount of time investigating other surface plots, and then deciding it was all too finicky to pull off and reverting back to this setup!
+
+First I'll setup the data
+
+```{r}
+library(plotly)
+set.seed(35521)
+x1 <- rnorm(30,0,3)
+x2 <- x1+rnorm(30,0,1)
+y <- 20 + 3*x1 + rnorm(length(x1), sd=1)
+x <- cbind(x1, x2)
+pairs(cbind(y,x))
+```
+
+now a grid for plotting...
+
+```{r}
+b1b2 <- expand.grid(seq(-4, 4, by=0.1), seq(-4, 4, by=0.1))
+b1b2 <- cbind(b1b2, rowSums(abs(b1b2)), rowSums(b1b2^2))
+inters <- apply(b1b2, 1, function(v) mean(y)-v[1]*mean(x1)-v[2]*mean(x2))
+params <- cbind(inters, b1b2)
+rssgrid <- apply(params, 1, function(v) sum((y-(v[1]+v[2]*x1+v[3]*x2))^2))
+plotit <- data.frame(b1=b1b2[,1], b2=b1b2[,2], rss=rssgrid)
+###essentially unconstrained (penalty weak enough that global minimum exists)
+library(plotly)
+scene = list(camera = list(eye = list(x = -1.25, y = 1.25, z = 0)))
+rr <- plotit[b1b2[,4]<=40,]
+la <- plotit[b1b2[,3]<=10,]
+```
+
+Here's the unconstrained ridge regression
+```{r}
+plot_ly(rr, x=~b1, y=~b2, z=~rss, marker = list(color = ~rss, colorscale = c('#FFE1A1', '#683531'), showscale = TRUE)) %>%
+  add_markers()
+```
+
+and the unconstrained LASSO...
+
+```{r}
+plot_ly(la, x=~b1, y=~b2, z=~rss, marker = list(color = ~rss, colorscale = c('#FFE1A1', '#683531'), showscale = TRUE)) %>%
+  add_markers()
+```
+
+now a bit more constraining...RR
+
+```{r}
+#slight constraint
+rr <- plotit[b1b2[,4]<=30,]
+la <- plotit[b1b2[,3]<=7,]
+plot_ly(rr, x=~b1, y=~b2, z=~rss, marker = list(color = ~rss, colorscale = c('#FFE1A1', '#683531'), showscale = TRUE)) %>%
+  add_markers()
+```
+
+and LASSO
+
+```{r}
+plot_ly(la, x=~b1, y=~b2, z=~rss, marker = list(color = ~rss, colorscale = c('#FFE1A1', '#683531'), showscale = TRUE)) %>%
+  add_markers()
+```
+
+...more constraining..RR
+
+```{r}
+rr <- plotit[b1b2[,4]<=20,]
+la <- plotit[b1b2[,3]<=5,]
+plot_ly(rr, x=~b1, y=~b2, z=~rss, marker = list(color = ~rss, colorscale = c('#FFE1A1', '#683531'), showscale = TRUE)) %>%
+  add_markers()
+```
+
+...and LASSO
+
+```{r}
+plot_ly(la, x=~b1, y=~b2, z=~rss, marker = list(color = ~rss, colorscale = c('#FFE1A1', '#683531'), showscale = TRUE)) %>%
+  add_markers()
+```
+
+heavier constraints..RR
+
+```{r}
+rr <- plotit[b1b2[,4]<=10,]
+la <- plotit[b1b2[,3]<=2,]
+plot_ly(rr, x=~b1, y=~b2, z=~rss, marker = list(color = ~rss, colorscale = c('#FFE1A1', '#683531'), showscale = TRUE)) %>%
+  add_markers()
+```
+
+LASSO
+
+```{r}
+plot_ly(la, x=~b1, y=~b2, z=~rss, marker = list(color = ~rss, colorscale = c('#FFE1A1', '#683531'), showscale = TRUE)) %>%
+  add_markers()
+```
+
+
+and more...RR
+
+```{r}
+rr <- plotit[b1b2[,4]<=1,]
+la <- plotit[b1b2[,3]<=1,]
+plot_ly(rr, x=~b1, y=~b2, z=~rss, marker = list(color = ~rss, colorscale = c('#FFE1A1', '#683531'), showscale = TRUE)) %>%
+  add_markers()
+```
+
+```{r}
+plot_ly(la, x=~b1, y=~b2, z=~rss, marker = list(color = ~rss, colorscale = c('#FFE1A1', '#683531'), showscale = TRUE)) %>%
+  add_markers()
+```
+
+and finally more again...RR
+```{r}
+rr <- plotit[b1b2[,4]<=0.5,]
+la <- plotit[b1b2[,3]<=0.5,]
+plot_ly(rr, x=~b1, y=~b2, z=~rss, marker = list(color = ~rss, colorscale = c('#FFE1A1', '#683531'), showscale = TRUE)) %>%
+  add_markers()
+```
+
+and LASSO.
+
+```{r}
+plot_ly(la, x=~b1, y=~b2, z=~rss, marker = list(color = ~rss, colorscale = c('#FFE1A1', '#683531'), showscale = TRUE)) %>%
+  add_markers()
+
+```
+
+

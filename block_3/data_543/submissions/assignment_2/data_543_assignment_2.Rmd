@@ -1,0 +1,120 @@
+---
+title: "<center>DATA-543 Assignment 2</center>"
+author: "<center>Dhun Sheth | Alan Zhang | Kulaphong Jitareerat | Kyle Deng</center>"
+date: "<center>2023-11-22</center>"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(gmodels)
+library(ggplot2)
+library(cowplot)
+```
+## Question 1
+```{r question_1}
+
+data <- read.csv("AlcData.csv", header=TRUE)
+
+```
+**Part A:**    
+The experimental units are the 44 male college students to which the treatment was applied to.    
+**Part B:**     
+The response variable is their score performance determined by taking the difference between the proportion correctly identified on one list of words and proportion incorrectly identified on a second list of
+words.    
+**Part C:**    
+An equal number of students received each treatment (11 students in each group) and students were assigned a group randomly, thus this would be "Balanced completely randomized design".     
+**Part D:**     
+Replication is the repetition of a treatment within an experiment. There are replicates because in each group more than 1 student received the same treatment, more specifically, in each group 11 students received the same treatment.     
+**Part E:**     
+Because the 'word completion task' was only performed once for each student, only 1 score per student was measured and so there was no duplication.  
+
+### Part F
+```{r question_1_part_f}
+
+A <- data$A
+AC <- data$AC
+AR <- data$AR
+P <- data$P
+
+pdat = stack(data, na.rm=TRUE)
+colnames(pdat) = c("score", "treatment")
+anova_table_result <- aov(score ~ treatment, data = pdat)
+summary(anova_table_result)
+```
+Assumptions:   
+1. Independence: The observations within each group must be independent of each other. Independence between groups is also assumed.  
+2. Normality: The response should be normally distributed, which can be verified from the residuals.    
+3. Constant Variance: The variances of the residuals should be approximately equal across all groups. This means that the spread of data points should be similar for each group.   
+   
+*H0 (null hypothesis):* The means of all treatment groups are the same and so the difference of means between each treatment group is 0.   
+*H1 (alternate hypothesis):* At least 1 treatment group has a different mean and so there is at least 1 difference between treatment groups which is not 0.   
+   
+p-value from anova table is below the 0.05 significance level and so the null hypothesis can be rejected, meaning there is at least 1 group mean which is different thus there is at least 1 difference between treatments which is significantly different from 0.  
+
+### Part G
+```{r question_1_part_g}
+
+
+contrasts <- fit.contrast(anova_table_result, "treatment",c(1/3,1/3,1/3,-1))
+print(contrasts)
+
+```
+
+*H0 (null hypothesis):* $\theta = 0$   
+*H1 (alternate hypothesis):* $\theta \neq 0$   
+   
+The estimated $\theta=-0.1248485$. The p-value is 0.03374 which is below the 0.05 significance level, and so the null hypothesis can be rejected, meaning the mean from the treatments containing alcohol is significantly different from the placebo treatment.  
+
+### Part H
+```{r question_1_part_h}
+
+par(mfrow = c(2, 2))
+hist(anova_table_result$residuals)
+
+qqnorm(anova_table_result$residuals)
+qqline(anova_table_result$residuals, col = 2)
+plot(anova_table_result$residuals~anova_table_result$fitted.values, main=paste("Residual vs. Fitted Value"))
+
+print(diag(var(data))) # variance of residuals same as this.
+par(mfrow = c(1, 1))
+
+```
+
+For accurate results, the following assumptions must hold:   
+- Independence: The observations within each group must be independent of each other. Independence between groups is also assumed.  
+- Normality: The response should be normally distributed, which can be verified from the residuals.    
+- Constant Variance: The variances of the residuals should be approximately equal across all groups. This means that the spread of data points should be similar for each group.   
+   
+1. Based on the experimental procedure, we can say independence reasonably holds because students were randomly assigned to each group. Would need more information to know if cups were given to each student randomly too.        
+2. Based on residual plots, normality assumption also seems to hold.   
+3. The variances of groups AC, AR, and P are close, however, variance of group A is a little large, but it can be concluded constant variance does loosely holds.     
+
+Thus, because the above assumptions are met to a reasonable extent, the results are accurate.   
+  
+## Question 2
+**Part A:** Can use the plots of land from different farm partners to setup blocks. If each partner can spare 2 hectares, and there are 4 groups (3 varieties and 1 control), randomly plant experimental units from each group such that each group covers a total of 0.5 hectares, and repeat this for all other partners.
+   
+**Part B:** Blocking is used to reduce the affect of lurking variables and create some homogeneity within each block.
+By blocking based on plots of land, we are trying to block the effect of region/soil may have on the yield measured and introduce homogeneity within each block by having each group planted under the same regional conditions.   
+
+## Question 3
+### Part A
+```{r question_3_part_a}
+
+p_val <- pf(5, 2, 4, lower.tail = FALSE)
+print(p_val)
+```
+   
+P-value = `r round(p_val,2)`   
+
+### Part B
+
+| Source       | DF | SS | MS | F | p-value |
+|:--------------|:----:|:----:|:----:|:---:|:---------:|
+| Treatments   | 2  | 20  | 10  | `r round(10/(28/6),2)` |  `r pf(10/(28/6), 2, 6, lower.tail = FALSE)`      |
+| Residual     | 6  | 28  | `r round(28/6,2)`   |   |         |
+| Total        | 8  |  48  |    |   |         |
+
+### Part C
+If the researcher cared about the treatment, then using the blocking version is more appropriate because had we not used blocking, the results would not have been as significant (here the blocking version is still not significant as 0.08>0.05 but it is much closer and can be concluded to be significant for a significance level of 0.1), given by the p-value being approximately 0.19 (no blocking) vs. 0.08 (using blocking). In addition, we can also see the MSE rising from 2 (in blocking) to 4.67 (no blocking). In addition, the researcher can also consider increasing the sample size to get a more accurate estimate and potentially get a stronger result in statistical significance. 
