@@ -1,0 +1,351 @@
+---
+title: "DATA-550 Lab 2"
+author: "Dhun Sheth"
+date: "2024-01-16"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(tibble)
+library(tidyr)
+library(ggplot2)
+library(jsonlite)
+library(tidyverse, quietly = TRUE)
+library(ggforce, quietly = TRUE)
+
+movies <- fromJSON('lab2-movies.json') %>% 
+  as_tibble() %>% 
+  unnest(-c(studios, genres))
+
+```
+
+
+## Question 1
+rubric={reasoning:1,accuracy:1}
+
+<h4>R</h4>
+<p>In the beginning of EDA, it can be good to look at some textual summaries, just to get an idea of what to plot. Download the file <code>lab2-movies.json</code> from Canvas, and then run the code for reading in the data provided below.   Using dataframe methods, do the following in three different cells:</p>
+    
+<ol>
+<li>Display the first few rows of the data.</li>
+<li>Display info about all columns, including their data types.</li>
+<li>Display a summary description of the data frame's numerical columns only.</li>
+</ol>
+ 
+</div>
+
+```{r question_1}
+
+print(head(movies)) # first few rows
+print(glimpse(movies)) # column info
+print(summary(movies[, sapply(movies, is.numeric)])) # summary statistics
+```
+
+
+## Question 1.2   
+
+rubric={viz:2,accuracy:1,reasoning:1}
+
+<ol>
+<li>Create a single histogram of a numerical column of your choice, choosing an appropriate number of bins and set the figure height to 100.</li>
+<li>Create a kernel density estimate of the same numerical column from part 1..</li>
+<liTry setting the opacity (<code>alpha</code> parameter) to a between 0 and 1 and the <code>fill</code> parameter to a color name as a string to get a shaded density. Hint: set these inside the geom, not inside the aes function.</li>
+<li>Do you think either of this density plot or the histogram in the previous exercise gives you a better understanding of the underlying data? Which one and why?</li>
+</ol>
+ 
+</div>
+
+```{r question_histogram}
+
+head(movies)
+
+ggplot(movies, aes(x=runtime)) + 
+  geom_bar(stat = "bin", binwidth=15)
+
+```
+
+```{r question_kernal}
+
+
+ggplot(movies, aes(x=runtime)) + 
+  geom_density(fill = "red", color = "black", alpha = 0.3)
+
+```
+
+
+I think the histogram gives a better understanding of the underlying data because I can easily see under which bin the most number of movie run times fall under, whereas the density plot just looks like a line graph with the area filled in. 
+
+
+## Question 1.3
+rubric={viz:2,accuracy:2}
+    
+<ul>
+    <li>Pipe the data fame's numerical columns (except <code>id</code>) into ggplot (the <code>.select_if()</code> method can help here, or you can do it manually).</li>
+<li>Copy the code from your density plot above and paste it here. Modify the code so that it accepts the piped dataframe and plots one density estimate per column in a plot grid with 2 columns and 3 rows. Don’t use a loop, use pivoting and faceting instead (I will post an example on how to do this on Canvas if we don't have time to cover it in lecture).</li>
+</ul>
+
+</div>
+
+```{r question_1.3}
+
+filtered_data <- movies %>% select(where(~is.numeric(.))) %>% select(-c(id))
+
+melt_data <- gather(filtered_data, key = "variable", value = "value")
+
+ggplot(melt_data, aes(x=value, fill = variable)) + 
+  geom_density(alpha = 0.3) + facet_wrap(~ variable, scales = "free", nrow = 3, ncol = 2)
+
+
+```
+
+
+
+# Pairwise numerical columns
+
+## Question 2
+rubric={viz:2,accuracy:2}
+    
+Next, let’s look at the relationships between pairs of numerical columns. For this we will create a scatterplot matrix (SPLOM) for all numerical columns except <code>id</code>.  I recommend starting with creating a single scatter plot and gradually substituting in the repeating columns.
+
+<ol>
+<li>Include the origin regardless if the data actually starts at zero.</li>
+<li>Reduce each subplots height and width to be able to see the entire lower diagonal in view.</li>
+<li>Set the opacity and size of the points in order for the plots to appear less saturated.</li>
+<li>Configure the axes to remove or shrink the font of the axes labels (and optional reduce the axes titles' size). Plots don't have to look perfect during EDA, the point here is to pick up trends, not necessarily to read all labels.</li>
+</ol>
+<p>Hint: There is nothing built into <code>ggplot</code> for this but the <code>GGally</code> package has a handy <code>ggpairs</code> function for this, which also plots single column densities on the diagonal and correlation coefficients on the upper corner. Install this package an then use the <code>ggpairs</code>.</p>
+
+
+</div>
+
+```{r question_2}
+library(GGally)
+
+ggpairs(
+  filtered_data,
+  title = "Customized ggpairs",
+  axisLabels = "none",  # Remove axes
+  lower = list(continuous = "points", alpha = 0.3),
+  aes_params = list(alpha = 0.3, size = 2)
+  ) +   theme_bw() +
+  theme(
+    panel.spacing = unit(0, "lines"),
+    axis.text = element_blank(),
+    axis.ticks = element_blank(),
+    axis.title = element_blank()
+  )
+
+```
+
+## Bonus
+
+```{r bonus}
+
+ggcorr(filtered_data, palette = "RdYlBu", label = TRUE, label_round = 2, hjust = 1)
+
+```
+
+
+The heat correlation map is a very easy way to see the correlation between numeric columns and I think this is a better visualization to identify correlation rather than the scatter plot matrix. 
+
+
+## Question 3
+
+<p>Lots of interesting variation in the histograms above! I wonder if some of it can be explained by genre or by which studio made the film ... This could be valuable information for Bestify™ so let’s find out!</p>
+<p>We’ll start with the movie genres. If you look at the data frame, you can see that each film has multiple genres in a list. This is not ideal and means we must make a decision if we are counting the film once per genre or once overall. Since we have no information about which is the main genres, I suggest we go ahead and count it once per genre. In order to do this we need to replicate each row once per genre in the genres column. In the tidyverse, this is referred to as "unnesting". Using the helper code below, create a new data frame  that unnets the vectors from the genres column. <a href="https://tidyr.tidyverse.org/reference/nest.html">Check out this tidyr doc for a simpler example</a>.</p>
+
+```{r}
+
+movies_unnested <- movies %>% unnest(genres)
+head(movies_unnested)
+```
+
+<ol>
+<li>Use this new dataframe and create multiple boxplots inside a single figure with genres on the y-axis and revenue on the x axis.</li>
+<li>Boxplots can only be sorted by passing an explicit list in the sort column, in this case the genres. I want you to sort the genres by median revenue, so that the median lines of the box plot are nicely sorted. I have given you a skeleton below where you can fill in the blanks, but you are also free to do it your own way. In the en you need a list that you can pass to <code>sort</code> inside <code>alt.Y()</code>.</li>
+
+
+```{r}
+
+free_genres <- movies %>% unnest(genres)
+free_genres <- free_genres %>%
+    group_by(genres) %>%
+    mutate(median_revenue = median(revenue))
+
+free_genres %>% select(c(genres, median_revenue, revenue)) %>% pivot_longer(!c(genres, median_revenue)) %>%
+  ggplot(aes(y = reorder(genres, median_revenue), x = value)) +
+  geom_boxplot()
+
+```
+
+<li>Remember that boxplots hide how many observations there are in each group. In order to determine how many movies went into the boxplots we just created, let's make a barplot with the counts on the x-axis and the genres on the y-axis.  Sort the bars by count such that the biggest bar closest to the x-axis.</li>
+</ol>
+
+```{r}
+
+count_movies <- movies_unnested %>% count(genres)
+
+ggplot(count_movies, aes(x = reorder(genres, -n), y = n)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Genre Counts", x = "Count", y = "Genre") +
+  coord_flip()
+
+```
+
+## Question 
+rubric={viz:1,accuracy:2,reasoning:2}
+
+<ol type="1">
+<li>Copy the code from you boxplot above and use the same strategy as for the histograms to repeat this boxplot for all numerical values. Ensure that categories are in the same order across all facets (so that we don't have to keep track of how they move around between subplots).</li>
+<li>Study the boxplots you just created and reflect over what you see. Identify a research oriented question that you would be interested in exploring (this does not have to relate to Bestflix) and briefly motivate why you think this would be interesting (&lt;90 words). This is an open ended question because EDA is often open ended. And even when you go in with one particular hypotheses, you must stay open to what the data tells you and
+be able to detect interesting relationships that you did not foresee ahead of time.</li>
+</ol>
+
+```{r}
+
+free_genres <- movies %>% unnest(genres)
+free_genres <- free_genres %>%
+    group_by(genres) %>%
+    mutate(median_revenue = median(revenue))
+
+free_genres %>% select(-c(id, title, studios)) %>% pivot_longer(!c(genres, median_revenue)) %>%
+  ggplot(aes(y = reorder(genres, median_revenue), x = value)) +
+  geom_boxplot() + facet_wrap(~name, scales = "free") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+
+Based on the box plots its interesting to see the vote_count is pretty random and does not correlate to movie budget or revenue - this is also similar to vote_average. An interesting research question is seeing how budget and revenue are impacted by each other, I would expect that a movie with a larger budget should generally have a higher revenue.
+
+## Question 
+
+<ol type="1">
+<li>Use this new dataframe and create multiple violinplots inside a single figure by having genres on the y-axis and revenue on the x axis.</li>
+<li>Read the documentation of the violin plot to find out how you can use its parameters to add a line for the median (hint: the same as quantile 0.5).</li>
+<li>We need to create a new column for sorting using <code>mutate()</code>. I want you to sort the genres by median revenue, so that the median lines of the violin plots are nicely sorted. I have given you a skeleton below where you can fill in the blanks, but you are also free to do it your own way. Then sort by this new column (I will post an example on how to do this on Canvas if we don't have time for it in lecture).</li>
+</ol>
+
+```{r}
+
+free_genres <- movies %>% unnest(genres)
+free_genres <- free_genres %>%
+    group_by(genres) %>%
+    mutate(median_revenue = median(revenue))
+
+free_genres %>% select(-c(id, title, studios)) %>% 
+  pivot_longer(!c(genres, median_revenue)) %>%
+  ggplot(aes(y = reorder(genres, median_revenue), x = value)) + 
+  geom_violin(trim = FALSE, draw_quantiles = 0.5) + 
+  facet_wrap(~name, scales = "free") + theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+
+
+## Question (Bonus)
+rubric={viz:0.5,accuracy:0.5}
+
+<ol type="1">
+<li> Upon reading the <a href="https://ggplot2.tidyverse.org/reference/geom_violin.html">documentation of the violin plot</a> you will notice there exists an argument for scaling the area of the violin plots according to the number of observations. Copy and edit the code from the faceted violin plots above such that large violins correspond to large sample sizes. </li>
+<li> 
+Compare this visualization to the boxplot and barplot we created in 3.1.  Which approach do you think is clearer for getting a feeling for the number of observation in each group and why?
+</li>
+</ol>
+
+```{r}
+
+free_genres <- movies %>% unnest(genres)
+free_genres <- free_genres %>%
+    group_by(genres) %>%
+    mutate(median_revenue = median(revenue))
+
+free_genres %>% select(-c(id, title, studios)) %>% 
+  pivot_longer(!c(genres, median_revenue)) %>%
+  ggplot(aes(y = reorder(genres, median_revenue), x = value)) + 
+  geom_violin(trim = FALSE, draw_quantiles = 0.5, scale='count') + 
+  facet_wrap(~name, scales = "free") + theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+
+To compare counts of observations, the bar plot showing counts by genre is the best because its clear to see which genre has the most counts, and which has the least. The box plot hides counts of observations so that is not a very good visualization, and the scaled violin plots are okay - but the faceted graph is very busy and may distract the reader if the point was to show the different counts of observations by genre. 
+
+## Question
+rubric={viz:1,accuracy:1,reasoning:1}
+
+As the final step of our EDA, let’s evaluate if studios preferentially produce some movie genres over others.
+<ol type="1">
+<li>Unnest both the <code>'studio'</code> and the <code>'genres'</code> columns via piping. We need both since we will be counting the number of observations in each studio/genre combination.</li>
+<li>Count the total number of movies in each of the combinations of genres and studio using <code>add_count()</code>. This will create a new column called <code>n</code>.  Create a heatmap of counts by mapping the appropriate features to  aesthetics encoding using <code>geom_tile</code>.</li>
+<li>Go through the <a href="http://ggobi.github.io/ggally/articles/ggally_plots.html">GGally example plots</a> and find an addition plot that you think is suitable for showing the count of the combination of categorical variables. Use this plot to visualize the counts.</li>
+<li>Which of the plots in 2 and 3 do you think gives you the clearest understanding of how the distribution of genres within each studio? Justify your answer. </li>
+</ol>
+
+```{r}
+
+free_studio_genres <- movies %>% unnest(genres) %>% unnest(studios)
+free_studio_genres <- free_studio_genres %>%
+    group_by(genres, studios) %>%
+    add_count()
+
+free_studio_genres %>% select(c(genres, studios, n)) %>% 
+  ggplot(aes(x = studios, y = genres, fill = n)) + 
+  geom_tile() + scale_fill_gradient(low = "white", high = "blue") +
+  labs(title = "Heatmap", x = "Studios", y = "Genres") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+```
+```{r}
+
+ggally_count(free_studio_genres, aes(x = studios, y = genres, colour = n)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+
+```
+
+I think the heatmap shows the counts of genres by studio the best (between the heatmap and count map from Gally) because in the Gally count map, both the color and size of square corresponds to the count of observations which I think is distracting and using just size makes it difficult to directly compare all combinations. However, the heatmap, all squares are uniform and so the user can use the color to directly see the combination of genre to studio with the highest count. The heatmap can also sometimes not be ideal due to the continuous scale, so if counts become very similar then its hard to distinguish by color (in such a situation directly adding the counts to the map can help.)
+
+## Question (Bonus)
+rubric={accuracy:1}
+
+The plots above are great for comparing absolute counts,
+but that means that studios with smaller production volume gets drowned out.
+Let's instead visualize the <em>proportion</em> within each studio for each genre.
+Calculate the proportion for each studio - genre pair,
+so that for each studio, the genre proportions adds up to 1.
+Visualize with your favorite categorical count plot.
+
+```{r}
+
+free_studio_genres <- movies %>% unnest(genres) %>% unnest(studios)
+free_studio_genres <- free_studio_genres %>%
+    group_by(genres, studios) %>%
+    add_count()
+
+data <- free_studio_genres %>% select(c(genres, studios, n))
+collapsed_data <- data %>%
+  distinct(genres, studios, .keep_all = TRUE)
+
+collapsed_data <- collapsed_data %>%
+  group_by(studios) %>%
+  mutate(total = sum(n))
+
+collapsed_data <- collapsed_data %>%
+  mutate(proportion = n / total)
+
+ggplot(collapsed_data, aes(x = studios, y = proportion, fill = genres)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(label = scales::percent(proportion)), position = position_stack(vjust = 0.5), size = 3) +
+  labs(title = "Proportion within Studio Categories", x = "Studios", y = "Proportion") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "right")
+
+
+```

@@ -1,0 +1,39 @@
+---
+title: "DEMO"
+author: "Dhun Sheth"
+date: "2024-02-08"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r, include=FALSE}
+
+source('nasa_R_wrapper/neo_function_wrapper.R')
+source('nasa_R_wrapper/epic_wrapper.R')
+source('nasa_R_wrapper/rover_images_wrapper_module.R')
+
+
+```
+
+```{r}
+# ROVER
+img_link <- get_mars_rover_image_url("curiosity", "fhaz", "2018-03-01")
+print(img_link)
+
+```
+
+```{r}
+# NEO
+neo_data <- get_neo('2024-01-01', '2024-01-07')
+
+```
+
+```{r}
+# EPIC
+image_list <- get_image_urls('cloud', '2024-01-01')
+print(image_list)
+```

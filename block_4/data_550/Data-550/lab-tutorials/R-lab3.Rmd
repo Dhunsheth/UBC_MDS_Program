@@ -1,0 +1,641 @@
+---
+title: "Data Visualization I"
+subtitle: "Lab 3"
+author: "Dr. Irene Vrbik"
+date: "Last updated: `r format(Sys.time(), '%B, %Y')`"
+output:
+  html_document:
+    code_folding: show
+    toc: yes
+    theme: lumen
+    toc_depth: '3'
+    toc_float: true
+    df_print: paged
+params: 
+  showsol: FALSE     # set TRUE to see the solutions
+  notes: FALSE      # set TRUE to see Irene's Instructor Notes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, echo=FALSE}
+iimg <- function(file, folder = "img/data550/", myurl = "https://irene.vrbik.ok.ubc.ca/"){
+  knitr::include_graphics(paste(myurl, folder, file, sep=""))
+}
+
+
+linkto <- function(file, folder = "img/data550/", myurl = "https://irene.vrbik.ok.ubc.ca/"){
+  return(paste(myurl, folder, file, sep=""))
+}
+```
+
+In this lab, we will go through the plots created in Lectures [5](https://irene.quarto.pub/data-visualization/lecture5.html#/title-slide) and [6](https://irene.quarto.pub/data-visualization/lecture6.html#/title-slide), this time, using `ggplot` in R. The corresponding Altair code can be found within the lecture slide decks.
+
+<!-- **Learning Objectives** -->
+
+<!-- -   Choose an effective visual encoding -->
+<!-- -   Create an area chart -->
+<!-- -   Visualize frequencies with bar plots -->
+<!-- -   Create histograms -->
+<!-- -   Facet to plot more variables -->
+<!-- -   Customize axis lables and ranges -->
+
+```{r, echo = FALSE, results = "asis", include = params$notes}
+cat(paste0("**Irene's Notes:** This is based off of:
+  
+- [Joel's video lec2-1](https://ubcca-my.sharepoint.com/personal/joel_ostblom_ubc_ca/_layouts/15/onedrive.aspx?ga=1&id=%2Fpersonal%2Fjoel%5Fostblom%5Fubc%5Fca%2FDocuments%2Fmds%2F2020%2D21%2F531%20%2D%20Data%20visualization%201%2Flec2%2Dvisual%2Denconding%2Dand%2Dplot%2Dconfig%2F531%2Dlec2%2D1%2Dvisual%2Dencodings%2Emp4&parent=%2Fpersonal%2Fjoel%5Fostblom%5Fubc%5Fca%2FDocuments%2Fmds%2F2020%2D21%2F531%20%2D%20Data%20visualization%201%2Flec2%2Dvisual%2Denconding%2Dand%2Dplot%2Dconfig)"))
+
+```
+
+
+First and foremost let's load the necessary packages. Obviously, we'll need **ggplot2** but as seen below, this is automatically loaded alongside the **tidyverse** library (which will be used data wrangling).
+
+```{r, message=FALSE}
+library(tidyverse) 
+```
+
+
+
+## Data sets
+
+### Stocks
+
+```{r}
+#| echo: false
+
+path = "/Users/ivrbik/Library/CloudStorage/OneDrive-UBC/github/Data-550/data/"
+
+```
+
+
+```{r}
+stocks = read.csv(paste(path, "stocks.csv", sep=""))
+stocks$date = as.Date(stocks$date)
+```
+
+### Vega-lite Gapminder
+
+```{r}
+gapminder <- read.csv("../data/vega-gapminder.csv")
+# gapminder$year = as.Date(ISOdate(gapminder$year,1,1))
+## (keeping dates as integers will be easier for calculation of the correlation matrix)
+```
+
+
+### Vega-lite Wheat
+
+```{r}
+wheat <- read.csv("../data/vega-wheat.csv")
+```
+
+
+## Lecture 5
+
+### Direct labeling
+
+Start with the default (with a change of theme to better match the example):
+```{r}
+ggplot(stocks) + 
+    aes(x = date,
+        y = price,
+        color = symbol) +
+    geom_line() +
+    ggthemes::scale_color_tableau()
+```
+
+remove the legend:
+```{r}
+ggplot(stocks) + 
+    aes(x = date,
+        y = price,
+        color = symbol) +
+    geom_line() +
+    ggthemes::scale_color_tableau() +
+    theme(legend.position = 'none')
+```
+Here we use the same approach with `geom_text` and `label` as we did above.
+The difference is that we're explicitly setting the data inside `geom_text`
+to use the dataframe that has been filtered to contain the max year only.
+```{r}
+stock_order = stocks[stocks$date == max(stocks$date),]
+stock_order = stock_order[order(stock_order$price),]
+
+ggplot(stocks) + 
+    aes(x = date,
+        y = price,
+        color = symbol,
+        label = symbol) +
+    geom_line() +
+    geom_text(data = stock_order, vjust=-1) +
+    ggthemes::scale_color_tableau() +
+    theme(legend.position = 'none')
+```
+
+
+### Axis titles
+
+To demo these functions, we'll use the `diamonds` data set
+
+### Axis formatting
+
+The `scales` package helps with the formatting in ggplot.  
+
+Here we are using an alternative for heat map rectangles.  
+
+```{r}
+ggplot(diamonds) +
+    aes(x = carat,
+        y = price) +
+    geom_hex() 
+```
+
+Let's change the units to $ on the Y axis
+
+
+```{r}
+ggplot(diamonds) +
+    aes(x = carat,
+        y = price) +
+    geom_hex() +
+    scale_y_continuous(labels = scales::label_dollar())
+```
+
+Let's change the y axis to scientific notation. 
+
+
+```{r}
+ggplot(diamonds) +
+    aes(x = carat,
+        y = price) +
+    geom_hex() +
+    scale_y_continuous(labels = scales::label_scientific())
+```
+
+
+Let's change the y axis to SI units
+
+```{r}
+# this broke... i'll need to find a working alternative
+ggplot(diamonds) +
+    aes(x = carat,
+        y = price) +
+    geom_hex() +
+    scale_y_continuous(labels = scales::label_number_si())
+```
+
+The scales package also helps us setting the number of ticks (breaks) on an axis.
+
+```{r}
+ggplot(diamonds) +
+    aes(x = carat,
+        y = price) +
+    geom_hex() +
+    scale_y_continuous(
+        labels = scales::label_dollar(),
+        breaks = scales::pretty_breaks(n = 10)) +
+    scale_fill_continuous(labels = scales::label_number_si())
+```
+
+You can remove an axis.
+
+```{r}
+ggplot(diamonds) +
+    aes(x = carat,
+        y = price) +
+    geom_hex() +
+    theme(axis.title.x=element_blank(),
+          axis.text.x=element_blank(),
+          axis.ticks.x=element_blank())
+```
+
+Or set a theme that hides all axis objects.
+
+```{r}
+ggplot(diamonds) +
+    aes(x = carat,
+        y = price) +
+    geom_hex() +
+    theme_void()
+```
+
+The classic theme is nice.
+There are [many more sophisticated theme in the ggthemes](https://mran.microsoft.com/snapshot/2016-12-03/web/packages/ggthemes/vignettes/ggthemes.html).
+
+```{r}
+ggplot(diamonds) +
+    aes(x = carat,
+        y = price) +
+    geom_hex() +
+    theme_classic()
+```
+
+### Figure, axis, and legend titles
+
+
+```{r}
+ggplot(diamonds) +
+    aes(x = carat,
+        y = price) +
+    geom_hex() +
+    labs(x = 'Carat', y = 'Price')
+```
+
+```{r}
+ggplot(diamonds) +
+    aes(x = carat,
+        y = price) +
+    geom_hex() +
+    labs(x = 'Carat', y = 'Price', fill = 'Number', title = 'Diamonds', subtitle='Small diamonds') +
+    scale_y_continuous(labels = scales::label_dollar())
+```
+
+## Lecture 6
+
+### Categorical Colours
+
+The default categorical colormap in ggplot is not explicitly designed,
+but rather [created by selecting equally spaced colors from the color wheel](https://stackoverflow.com/questions/8197559/emulate-ggplot2-default-color-palette).
+
+```{r}
+ggplot(iris) + 
+    aes(x = Petal.Width,
+        y = Petal.Length,
+        color = Species) +
+    geom_point(size = 5)
+```
+
+All useful color maps are not collecting in one place,
+but available through different functions and packages.
+For example,
+the [color maps from color brewer](https://github.com/EmilHvitfeldt/r-color-palettes/blob/master/man/figures/README-RColorBrewer-1.png) are accessible via
+`scale_color|fill_brewer|distiller`
+(use the brewer suffix for categorical and distiller for sequential values).
+
+```{r}
+ggplot(iris) + 
+    aes(x = Petal.Width,
+        y = Petal.Length,
+        color = Species) +
+    geom_point(size = 5) +
+    scale_color_brewer(palette = 'Dark2')
+```
+
+[All R colors maps can be viewed in this repo](https://github.com/EmilHvitfeldt/r-color-palettes).
+[The tableau colors used in Altair are accessible via the ggthemes package](https://github.com/EmilHvitfeldt/r-color-palettes/blob/master/man/figures/README-ggthemes-1.png).
+
+```{r}
+ggplot(iris) + 
+    aes(x = Petal.Width,
+        y = Petal.Length,
+        color = Species) +
+    geom_point(size = 5) +
+    ggthemes::scale_color_tableau()
+```
+
+We could also set the colorscale manually via their HTML codes instead.
+
+```{r}
+ggplot(iris) + 
+    aes(x = Petal.Width,
+        y = Petal.Length,
+        color = Species) +
+    geom_point(size = 5) +
+    scale_color_manual(values = c('#FF7F50', '#4682B4', '#663399'))
+```
+
+### Sequential Colour Schemes
+
+The default color map for numerical values goes from dark to white,
+since the default background is dark.
+
+```{r}
+ggplot(iris) + 
+    aes(x = Petal.Width,
+        y = Petal.Length,
+        color = Petal.Width) +
+    geom_point(size = 5)
+```
+
+It can be changed to the viridis (this is the same colour map that we looked at in lecture as a popular alternative in Altair) color map.
+
+```{r}
+ggplot(iris) + 
+    aes(x = Petal.Width,
+        y = Petal.Length,
+        color = Petal.Width) +
+    geom_point(size = 5) +
+    scale_color_viridis_c()
+```
+
+Reversing is possible via the same techniques as for axes,
+but it does not look great since the color legend is sorted "upside down".
+
+
+```{r}
+ggplot(iris) + 
+    aes(x = Petal.Width,
+        y = Petal.Length,
+        color = Petal.Width) +
+    geom_point(size = 5) +
+    scale_color_viridis_c(trans = 'reverse')
+```
+
+There is a special syntax for colormaps
+that preserves the orientation of the legend
+while reversing.
+
+```{r}
+ggplot(iris) + 
+    aes(x = Petal.Width,
+        y = Petal.Length,
+        color = Petal.Width) +
+    geom_point(size = 5) +
+    scale_color_viridis_c(direction = -1)
+```
+
+
+### Diverging Colour Schemes
+
+Like in Altair,
+it is not that informative to use the default color map for diverging values. For demonstration purposes let's look at the correlation matrix from the [gapminder](#vega-lite-gampinder) data set:
+
+```{r}
+corr_mat = cor(gapminder[,-2])
+library(reshape2)
+corr_df <- melt(corr_mat)
+
+ggplot(corr_df) +
+    aes(x = Var1,
+        y = Var2,
+        fill = value) +
+    geom_tile()
+```
+
+[The default bluered tableau diverging color map can be used via ggthemes](https://jrnold.github.io/ggthemes/reference/index.html).
+
+```{r}
+ggplot(corr_df) +
+    aes(x = Var1,
+        y = Var2,
+        fill = value) +
+    geom_tile() +
+    ggthemes::scale_fill_gradient2_tableau()
+```
+
+However, this sets blue as high values by default, which is against people's intuition since red is often used for "hot" and blue or "cold". We can either reverse the colormap, or use one from ColorBrewer instead
+
+```{r}
+ggplot(corr_df) +
+    aes(x = Var1,
+        y = Var2,
+        fill = value) +
+    geom_tile() +
+  scale_fill_distiller(palette = 'PuOr')
+```
+
+```{r}
+ggplot(corr_df) +
+    aes(x = Var1,
+        y = Var2,
+        fill = value) +
+    geom_tile() +
+   scale_fill_distiller(palette = 'PuOr', limits = c(-1, 1))
+```
+
+### Highlighting with colors and text labels
+
+```{r}
+wheat = wheat[wheat$year > 1700,]
+
+# Set the year to be highlighted to a separate value in a new column
+wheat$'highlight' = FALSE
+wheat[wheat$year == 1810, 'highlight'] = TRUE
+
+ggplot(wheat) +
+    aes(x = year,
+        y = wheat,
+        fill = highlight) +
+    geom_bar(stat = 'identity', color = 'white') +
+    ggthemes::scale_fill_tableau()
+```
+
+And remove the legend.
+
+```{r}
+ggplot(wheat) +
+    aes(x = year,
+        y = wheat,
+        fill = highlight) +
+    geom_bar(stat = 'identity', color = 'white') + 
+    ggthemes::scale_fill_tableau() +
+    theme(legend.position = 'none')
+```
+
+To add annotations,
+we can use `geom_text` 
+with the `label` aesthetic.
+
+```{r}
+ggplot(wheat) +
+    aes(x = year,
+        y = wheat,
+        fill = highlight,
+        label = wheat) +
+    geom_bar(stat = 'identity', color = 'white') + 
+    geom_text(vjust=-0.3) +
+    ggthemes::scale_fill_tableau() +
+    theme(legend.position = 'none')
+```
+
+To get these to be the same colors as the bars,
+we can set the `color` aestethic,
+and add the corresponding color scale.
+
+```{r}
+ggplot(wheat) +
+    aes(x = year,
+        y = wheat,
+        fill = highlight,
+        label = wheat,
+        color = highlight) +
+    geom_bar(stat = 'identity', color = 'white') + 
+    geom_text(vjust=-0.3) +
+    ggthemes::scale_fill_tableau() +
+    ggthemes::scale_color_tableau() +
+    theme(legend.position = 'none')
+```
+
+Now we can remove the gridlines.
+
+```{r}
+ggplot(wheat) +
+    aes(x = year,
+        y = wheat,
+        fill = highlight,
+        label = wheat,
+        color = highlight) +
+    geom_bar(stat = 'identity', color = 'white') + 
+    geom_text(vjust=-0.3) +
+    ggthemes::scale_fill_tableau() +
+    ggthemes::scale_color_tableau() +
+    theme(legend.position = 'none',
+          panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank())
+```
+
+If you want your label to represent the count
+(which we normally calculate in the geom for ggplot),
+you can set it to `label = stat(count)`.
+
+To set a specific annotation text,
+we could either use the same approach as in Altair 
+of adding a new column to our data frame,
+or we could use the `annotate` function.
+
+
+```{r}
+ggplot(wheat) +
+    aes(x = year,
+        y = wheat,
+        fill = highlight) +
+    geom_bar(stat = 'identity', color = 'white') + 
+    annotate('text', label = 'The record year', x = 1800, y = 102) +
+    ggthemes::scale_fill_tableau() +
+    theme(legend.position = 'none')
+```
+
+## Lecture 7 
+
+
+```{r}
+cars = read.csv(paste(path, "cars.csv", sep=""))
+cars$Year = as.Date(cars$Year)
+
+ 
+ggplot(cars) +
+    aes(x = Year,
+        y = Horsepower,
+        color = Origin) +
+    geom_point() +
+    geom_line(stat = 'summary', fun = 'mean')
+```
+
+`geom_smooth` creates a loess trendline by default.
+The shaded gray area is the 95% confidence interval of the fitted line.
+
+```{r}
+ggplot(cars) +
+    aes(x = Year,
+        y = Horsepower,
+        color = Origin) +
+    geom_point() +
+    geom_smooth(method = 'loess', formula='y ~ x')
+```
+
+
+We can color the confidence interval the same as the lines.
+
+```{r}
+ggplot(cars) +
+    aes(x = Year,
+        y = Horsepower,
+        color = Origin,
+        fill = Origin) +
+    geom_point() +
+    geom_smooth()
+
+```
+
+And also remove it.
+```{r}
+ggplot(cars) +
+    aes(x = Year,
+        y = Horsepower,
+        color = Origin,
+        fill = Origin) +
+    geom_point() +
+    geom_smooth(se = FALSE, size = 2)
+```
+Similar to the `bandwidth` in Altair,
+you can set the `span` in `geom_smooth` 
+to alter how sensitive the loess fit is to local variation.
+
+```{r}
+ggplot(cars) +
+    aes(x = Year,
+        y = Horsepower,
+        color = Origin,
+        fill = Origin) +
+    geom_point() +
+    geom_smooth(se = FALSE, size = 2, span = 1)
+```
+If you wnat a linear regression instead of loess
+you can set the method to `lm` (linear model).
+
+```{r}
+ggplot(cars) +
+    aes(x = Year,
+        y = Horsepower,
+        color = Origin,
+        fill = Origin) +
+    geom_point() +
+    geom_smooth(se = FALSE, size = 2, method = 'lm')
+```
+
+### Confidence intervals
+
+In ggplot, we can create confidence bands via `geom_ribbon`.
+Previously we have passed specific statistic summary functions to the `fun` parameter,
+but here we will use `fun.data` because we need both the lower and upper bond 
+of where to plot the ribbon.
+Whereas `fun` only allows functions that return a single value which decides where to draw the point on the y-axis
+(such as `mean`),
+`fun.data` allows functions to return three values (the min, middle, and max y-value).
+The `mean_cl_boot` function is especially helpful here,
+since it returns the upper and lower bound of the bootstrapped CI
+(and also the mean value, but that is not used by `geom_ribbon`).
+
+You need the `Hmisc` package installed in order to use `mean_cl_boot`,
+if you don't nothing will show up but you wont get an error,
+so it can be tricky to realize what is wrong.
+
+```{r}
+ggplot(cars) +
+    aes(x = Year,
+        y = Horsepower,
+        color = Origin,
+        fill = Origin) +
+    geom_ribbon(stat = 'summary', fun.data = mean_cl_boot, alpha=0.5, color = NA)
+    # `color = NA` removes the ymin/ymax lines and shows only the shaded filled area
+```
+We can add a line for the mean here as well.
+```{r}
+ggplot(cars) +
+    aes(x = Year,
+        y = Horsepower,
+        color = Origin,
+        fill = Origin) +
+    geom_line(stat = 'summary', fun = mean) +
+    geom_ribbon(stat = 'summary', fun.data = mean_cl_boot, alpha=0.5, color = NA)
+```
+To plot the confidence interval around a single point,
+we can use `geom_pointrange`,
+which also plots the mean
+(so it uses all three values return from `mean_cl_boot`).
+```{r}
+ggplot(cars) +
+    aes(x = Horsepower,
+        y = Origin) +
+    geom_pointrange(stat = 'summary', fun.data = mean_cl_boot)
+```
+And finally we can plot the observations in the backgound here.
+```{r}
+ggplot(cars) +
+    aes(x = Horsepower,
+        y = Origin) +
+    geom_point(shape = '|', color='grey', size=5) +
+    geom_pointrange(stat = 'summary', fun.data = mean_cl_boot, size = 0.7)
+```
+

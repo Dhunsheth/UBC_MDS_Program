@@ -1,0 +1,183 @@
+---
+title: "Data Visualization I"
+subtitle: "Lab 2"
+author: "Dr. Irene Vrbik"
+output:
+  html_document:
+    code_folding: show
+    toc: yes
+    theme: lumen
+    toc_depth: '3'
+    toc_float: true
+    df_print: paged
+params: 
+  showsol: FALSE     # set TRUE to see the solutions
+  notes: FALSE      # set TRUE to see Irene's Instructor Notes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, echo=FALSE}
+iimg <- function(file, folder = "img/data550/", myurl = "https://irene.vrbik.ok.ubc.ca/"){
+  knitr::include_graphics(paste(myurl, folder, file, sep=""))
+}
+
+
+linkto <- function(file, folder = "img/data550/", myurl = "https://irene.vrbik.ok.ubc.ca/"){
+  return(paste(myurl, folder, file, sep=""))
+}
+```
+
+In this lab, we will go through the plots created in Lectures [3](https://irene.quarto.pub/data-visualization/lecture3.html#/title-slide) and [4](https://irene.quarto.pub/data-visualization/lecture4.html#/title-slide), this time, using `ggplot` in R. The corresponding Altair code can be found within the lecture slide decks.
+
+<!-- **Learning Objectives** -->
+
+<!-- -   Choose an effective visual encoding -->
+<!-- -   Create an area chart -->
+<!-- -   Visualize frequencies with bar plots -->
+<!-- -   Create histograms -->
+<!-- -   Facet to plot more variables -->
+<!-- -   Customize axis lables and ranges -->
+
+```{r, echo = FALSE, results = "asis", include = params$notes}
+cat(paste0("**Irene's Notes:** This is based off of:
+  
+- [Joel's video lec2-1](https://ubcca-my.sharepoint.com/personal/joel_ostblom_ubc_ca/_layouts/15/onedrive.aspx?ga=1&id=%2Fpersonal%2Fjoel%5Fostblom%5Fubc%5Fca%2FDocuments%2Fmds%2F2020%2D21%2F531%20%2D%20Data%20visualization%201%2Flec2%2Dvisual%2Denconding%2Dand%2Dplot%2Dconfig%2F531%2Dlec2%2D1%2Dvisual%2Dencodings%2Emp4&parent=%2Fpersonal%2Fjoel%5Fostblom%5Fubc%5Fca%2FDocuments%2Fmds%2F2020%2D21%2F531%20%2D%20Data%20visualization%201%2Flec2%2Dvisual%2Denconding%2Dand%2Dplot%2Dconfig)"))
+
+```
+
+
+First and foremost let's load the necessary packages. Obviously, we'll need **ggplot2** but as seen below, this is automatically loaded alongside the **tidyverse** library (which will be used data wrangling).
+
+```{r, message=FALSE}
+library(tidyverse) 
+```
+
+
+
+## Data sets
+
+
+### Weather Data Set
+
+Today we will be visualizing weather statistics for the U.S. cities of Seattle and New York.  
+```{r}
+weather = 'https://cdn.jsdelivr.net/npm/vega-datasets@1/data/weather.csv'
+df = read_csv(weather)
+```
+A nice feature of using **readr**'s `read_csv` function (as opposed to using `read.csv` in base R) is that it automatically returns the data types of the columns in our data frame.  Another handy function  to help inspect our data frame is `glimpse()` from the **dplyr** package (similar to `.info()` in Python). N.B. all the packages mentioned are loaded automatically when we load `tidyverse` package. 
+```{r}
+df %>% glimpse()
+```
+
+
+### Gap Minder
+
+
+
+```{r}
+gm_url = 'https://irene.vrbik.ok.ubc.ca/data/world-data-gapminder.csv'
+gm = read_csv(gm_url)
+
+gm2018 = gm %>% filter(between(year, as.Date('2018-01-01'), as.Date('2018-12-31')))
+glimpse(gm2018)
+```
+
+## (Re)creation of plots from Lecture 3
+
+### Layered Plot
+
+We will attempt to recreate this plot:
+
+```{r, echo=FALSE}
+iimg("lec3/prec-layer.png")
+```
+
+Recall the Altair code:
+
+```{python, eval = FALSE}
+# code in Python's Altair (not run in R)
+precip = alt.Chart(df).mark_line(
+).encode(
+  x = 'month(date)',            # will bin obs by month
+  y = 'average(precipitation)', # will avg prec within in month 
+  color = 'location')
+```
+To bin the data according to month, I have found the easiest way is to create a new data column which extracts this information from dates.  The **lubridate** library then converts this to an ordinal categorical variable.  To create this in R we need to make use of the `stat_summary` as used in lab 1.  As a final step we need to use  `group` aesthetic (read documentation [here](https://ggplot2.tidyverse.org/reference/aes_group_order.html))
+
+```{r}
+library(lubridate)
+df$month =  month(df$date, label=TRUE, abbr=TRUE)
+
+ggplot(df, aes(x = month, y = precipitation, color = location, group = location)) + 
+  stat_summary(fun = mean, geom = "line")
+
+```
+
+### Line Plots
+
+
+```{r}
+ggplot(gm, aes(x = year, y = population)) + 
+  geom_line(stat = "summary", fun = mean)
+```
+
+### Area Plots
+
+
+```{r}
+ggplot(gm, aes(x = year, y = population, colour = region)) + 
+  geom_area(stat = "summary", fun = mean)
+```
+Note that colour corsponds to the line dividing the stacked area chart, rather than the fill of the area.  So to fix that we replace `color` by `fill`:
+```{r}
+ggplot(gm, aes(x = year, y = population, fill = region)) + 
+  geom_area(stat = "summary", fun = mean)
+```
+
+
+### Bar Plots
+
+```{r}
+ggplot(gm2018, aes(x=region,  y= population)) + 
+  geom_bar(stat = "summary", fun = sum)
+```
+To get a count rather than a sum of the population we use the `stat_count` function (or `stat = "count"` in the geom function).  Be sure to remove the y aes or you will get an error!
+```{r}
+ggplot(gm2018, aes(x=region)) + 
+  geom_bar(stat = "count") #/ stat_count(geom = "bar")
+```
+Note that this is acutally the default stat for `geom_bar`:
+```{r}
+ggplot(gm2018, aes(x=region)) + 
+  geom_bar()
+```
+
+To reorder we use a base R function `reorder()` by the sum of the population in the regions.  In order to use that value in `reorder()` we'll have to save it somewhere first:
+```{r}
+gm2018 = gm2018 %>% 
+  group_by(region) %>% 
+  add_count() # creates a column called 'n' that holds the total count for each region
+head(gm2018)
+```
+
+```{r}
+ggplot(gm2018, aes(x=reorder(region, -n))) + 
+  geom_bar(stat = "count")
+```
+Note that we use `-n` to indicate that want to sort in decreasing order (as opposed to using `n` which would sort in increasing order).
+
+### Histograms
+
+```{r}
+ggplot(gm2018, aes(x = life_expectancy)) + 
+  geom_bar(stat = "bin")
+```
+In ggplot we can specify the `binwidth` (as opposed to the number of maxbins we set in Altair).  For example:
+```{r}
+ggplot(gm2018, aes(x = life_expectancy)) + 
+  geom_bar(stat = "bin", binwidth = 4)
+```
+

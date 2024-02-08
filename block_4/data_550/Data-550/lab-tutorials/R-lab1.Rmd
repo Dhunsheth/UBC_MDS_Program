@@ -1,0 +1,296 @@
+---
+title: "Data Visualization I"
+subtitle: "Lab 1" 
+author: "Dr. Irene Vrbik"
+date: "Last updated: `r format(Sys.time(), '%B, %Y')`"
+output:
+  html_document:
+    code_folding: show
+    toc: yes
+    theme: lumen
+    toc_depth: '3'
+    toc_float: true
+    df_print: paged
+params: 
+  showsol: FALSE     # set TRUE to see the solutions
+  notes: FALSE      # set TRUE to see Irene's Instructor Notes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, echo=FALSE}
+iimg <- function(file, folder = "img/data550/", myurl = "https://irene.vrbik.ok.ubc.ca/"){
+  knitr::include_graphics(paste(myurl, folder, file, sep=""))
+}
+
+
+linkto <- function(file, folder = "img/data550/", myurl = "https://irene.vrbik.ok.ubc.ca/"){
+  return(paste(myurl, folder, file, sep=""))
+}
+```
+
+
+In this lab, we will go through the plots created in Lectures [1](https://irene.quarto.pub/data-visualization/lecture1_python.html#/title-slide) and [2](https://irene.quarto.pub/data-visualization/lecture2.html#/title-slide), this time, using `ggplot` in R. The corresponding Altair code can be found within the lecture slide decks.
+
+
+```{r, echo = FALSE, results = "asis", include = params$notes}
+cat(paste0("**Irene's Notes:** This is based off of:
+  
+- [Joel's video lec2-1](https://ubcca-my.sharepoint.com/personal/joel_ostblom_ubc_ca/_layouts/15/onedrive.aspx?ga=1&id=%2Fpersonal%2Fjoel%5Fostblom%5Fubc%5Fca%2FDocuments%2Fmds%2F2020%2D21%2F531%20%2D%20Data%20visualization%201%2Flec2%2Dvisual%2Denconding%2Dand%2Dplot%2Dconfig%2F531%2Dlec2%2D1%2Dvisual%2Dencodings%2Emp4&parent=%2Fpersonal%2Fjoel%5Fostblom%5Fubc%5Fca%2FDocuments%2Fmds%2F2020%2D21%2F531%20%2D%20Data%20visualization%201%2Flec2%2Dvisual%2Denconding%2Dand%2Dplot%2Dconfig)"))
+
+```
+
+## ggplot
+
+First and foremost let's load the necessary packages. Obviously, we'll need **ggplot2** but as seen below, this is automatically loaded alongside the **tidyverse** library (which will be used for data wrangling).
+
+```{r}
+library(tidyverse) 
+```
+
+### Basic syntax
+
+
+Every **ggplot2** plot has three key components:
+
+1.  **data** in "tidy" format (first argument in `ggplot`)
+2.  A set of **aesthetic mappings** between variables in the data and visual properties (eg. `x`, `y`, `colour`[^1], `shape`, `size`), and (set in [`aes`](https://ggplot2.tidyverse.org/reference/aes.html))
+3.  At least one layer which describes how to render each observation. 
+
+    - Usually created with a [**`geom`**](https://ggplot2.tidyverse.org/reference/#geoms) function.
+    - Sometimes spcified with a [`stat_*`](https://ggplot2.tidyverse.org/reference/#stats) function (or `geom` is specified with a `stat` argument).   See [Statistical Summaries] section below
+
+[^1]: colour can be spelled with or without the "u". Altair only accepts the American spelling "color"
+
+A common basic syntax has the form:
+
+```{r, eval=FALSE}
+ggplot(<df>, aes(x = <var1>, y = <var2>)) +
+  geom_*()
+```
+
+where:
+
+-   `df` is a "tidy" data frame
+-   `var1` is the desired column (i.e. feature/variable) from `df`
+-   `var2` is the desired column (i.e. feature/variable) from `df`
+-   and `geom_*` is a geometric object (often corresponding to a plot type eg. `geom_area` for area plots, `geom_points` for scatter plots)
+    - the basic choices can be found [here (ggplot2-book)](https://ggplot2-book.org/individual-geoms.html) 
+    - a complete list of choices [here](https://ggplot2.tidyverse.org/reference/#geoms))
+
+N.B. we do *not* need to wrap our field names in quotations. Alternatively we could have used (output suppressed to save space):
+
+N.B. It is recommended  in the [ggplot2 book](https://ggplot2-book.org/getting-started.html#basic-use) that each command appear on a new line for readability
+
+
+### Modify main, axis and legend titles {#labels}
+
+The functions below can be used to modify plot titles (main title, axis labels and legend titles) using R software and ggplot2 package.
+
+```{r, eval = FALSE}
+ggtitle(label) # for the main title
+xlab(label) # for the x axis label
+ylab(label) # for the y axis label
+labs(...) # for the main title, axis labels and legend titles
+```
+
+### Statistical Summaries
+
+When we need to plot summary statistics in a ggplot we could of course wrangle the data outside of the plotting function.  However, we should try and make sure of the shortcuts available to us directly within `ggplot()`.  Similar to the aggregation functions used in Altair, we can create new variables using statistical transformations, or **stats**, via `stat_*` functions; see complete list [here](https://ggplot2-book.org/layers.html?q=stat_#stat).  
+
+Some of these functions won't be called directly, but rather used "under the hood" to generate many important geoms.  For example, `stat_bin` is used to make histogram and it produces the following variables:
+
+- `count`, the number of observations in each bin
+- `density`, the density of observations in each bin (percentage of total / bar width)
+- `x`, the centre of the bin
+
+When we do use these functions directly, we call call them in two different ways: You can either 
+
+- add a `stat_()` function and override the default geom, or 
+- add a `geom_()` function and override the default stat
+
+You can see an example using `stat_summary`  down [below](#aggregations)
+
+## Data sets
+
+### Cars
+
+This was the 1983 ASA Data Exposition dataset. The dataset was collected by Ernesto Ramos and David Donoho and contains a label plus 8 variables for 406 different cars. The data contains NaNs in several records. The original cars.data archive was retrieved from StatLib, the Datasets Archive located at http://lib.stat.cmu.edu/datasets
+
+
+```{r}
+cars_url = "https://raw.githubusercontent.com/sandialabs/slycat-data/master/cars.csv"
+cars <- read.csv(cars_url)
+attach(cars)
+head(cars)
+```
+
+
+
+## (Re)creation of plots from Lecture 1
+
+Recall the connections we made between Altair's syntax and ggplot's:
+
+```{r, echo=FALSE}
+iimg("lec1/grammar_of_graphics_syntax.006.jpeg")
+```
+
+### Scatter plot
+
+#### Mapping colour to a continuous feature
+
+We will attempt to recreate this plot:
+
+```{r, echo=FALSE}
+iimg("lec1/cars-colour.png")
+```
+
+Recall the Altair code:
+
+```{python, eval = FALSE}
+# code in Python's Altair (not run in R)
+alt.Chart(cars).mark_point().encode(
+    x='Weight_in_lbs',
+    y='Miles_per_Gallon',
+    color='Horsepower')
+```
+
+Before unfolding the code below by pressing the "CODE" button on the right-hand size, attempt it for yourself! (Note that some of the column names are slightly different from the vega data set we imported in Python)
+
+```{r, class.source = 'fold-hide'}
+ggplot(cars, aes(x = Weight, y = MPG, color = Horsepower)) + 
+  geom_point()
+```
+
+Notice that there are slight differences in the default behaviour of `ggplot` vs. Altair. Apart from general "themes" (ggplot uses a gray background and filled points), Altair includes the origin (0,0) whereas `ggplot` extends the axes only to the range of the data points.  Also, R gives us a warning that it removes a number of row containing missing values.  While this is a nice feature, I will suppress this warning (using `warning = FALSE` in the following chunks).
+
+#### Mapping colour to a categorical feature
+
+We will attempt to recreate this plot:
+
+```{r, echo=FALSE}
+iimg("lec1/cars-scatter-origin.png")
+```
+
+Recall the Altair code:
+
+```{python, eval = FALSE}
+# code in Python's Altair (not run in R)
+alt.Chart(cars).mark_point().encode(
+    x='Weight_in_lbs',
+    y='Miles_per_Gallon',
+    color='Origin')
+```
+
+Before unfolding the code below by pressing the "CODE" button on the right-hand size, attempt it for yourself! Hint: you will need to change the data type of `Origin`.
+
+```{r, class.source = 'fold-hide', warning=FALSE}
+## Solution (output and warnings suppressed to save space)
+cars$Origin <- factor(cars$Origin, levels = c(2,3,1), labels = c("Europe",  "Japan", "USA"))
+ggplot(cars, aes(x = Weight, y = MPG, color = Origin)) + 
+  geom_point()
+
+```
+
+### Line plots 
+
+#### Running average over time 
+
+We will attempt to recreate this plot:
+
+```{r, echo=FALSE}
+iimg("lec1/agg-time.png")
+```
+
+Recall the Altair code:
+
+```{python, eval = FALSE}
+# code in Python's Altair (not run in R)
+alt.Chart(cars).mark_point().encode(
+    x='Year',
+    y='mean(Miles_per_Gallon)')
+```
+
+I don't expect you to be able to get at this one without some guidance, so let's walk through it together.  First recall that this is what our data for these two variables look like: 
+```{r, warning=FALSE}
+ggplot(cars, aes(x = Year, y = MPG)) + 
+  geom_point()
+```
+What we need to do if first _summarize_ the y values at distinct x values using the `stat_summary()` function (read documentation [here](https://ggplot2.tidyverse.org/reference/stat_summary.html) and the [Statistical Summaries](#statistical-summaries) section above).  In this function will need to specify `fun`, which function we'd like to apply to these y values (in this case the mean() function); and `geom`, which geometric object, aka marking, we'd like to  display the data with (in this case "point")
+```{r, warning=FALSE}
+ggplot(cars, aes(x = Year, y = MPG)) + 
+  stat_summary(fun = mean, geom = "point")
+```
+As stated before, Altair's default is slightly different in that it includes the origin in this plot. Alternatively/equivalently we could have used:
+```{r, eval=FALSE}
+# output suppressed to save space
+ggplot(cars, aes(x = Year, y = MPG)) + 
+  geom_point(stat = "summary", fun = mean)
+```
+
+
+To superimpose points overtop of the line as done in the example below:
+
+We will attempt to recreate this plot:
+
+```{r, echo=FALSE}
+iimg("lec1/type-b.png")
+```
+
+Recall the Altair code:
+```{r, eval=FALSE}
+line = alt.Chart(cars).mark_line().encode(
+    x='Year',
+    y='mean(Miles_per_Gallon)')
+
+line + line.mark_point() 
+```
+we could use ...
+```{r,  class.source = 'fold-hide', warning=FALSE}
+ggplot(cars, aes(x = Year, y = MPG)) + 
+  geom_point(stat = "summary", fun = mean) +
+  geom_line(stat = "summary", fun = mean)
+```
+
+
+#### Running average over 
+
+We will attempt to recreate this plot:
+
+```{r, echo=FALSE}
+iimg("lec1/line-cars.png")
+```
+
+Recall the Altair code:
+
+```{python, eval = FALSE}
+# code in Python's Altair (not run in R)
+alt.Chart(cars).mark_line().encode(
+    x='Year',
+    y='mean(Miles_per_Gallon)',
+    color='Origin')
+```
+
+Try to adapt the above code in order to recreate this plot in R.  While the answer can be unfolded below, do try it out before you click!
+```{r, warning=FALSE, class.source = 'fold-hide'}
+ggplot(cars, aes(x = Year, y = MPG, colour = Origin)) + 
+  geom_line(stat = "summary", fun = mean) # or
+ # stat_summary(fun = mean, geom = "line")
+
+```
+
+_Question: let's see if you can use the multiple concepts above to create this:_
+
+```{r, echo=FALSE, warning=FALSE}
+ggplot(cars, aes(x = Year, y = MPG, colour = Origin)) + 
+  geom_line(stat = "summary", fun = mean) +
+  geom_point()
+
+```
+
+
+<!-- ## (Re)creation of plots from Lecture 2 -->
+
+<!-- ... i will come back to this later -->

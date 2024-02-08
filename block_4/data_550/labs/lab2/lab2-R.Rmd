@@ -1,0 +1,422 @@
+---
+title: "Lab 2"
+author: 'Data 550: Data Visualization I'
+date: "See Canvas for Due Date"
+output:
+  pdf_document:
+    toc: yes
+  html_document:
+    number_sections: yes
+    code_folding: show
+    df_print: paged
+    toc: yes
+params:
+  showsol: yes
+---
+
+```{r echo=FALSE}
+totalpts = bonuspts =0
+```
+
+
+
+```{r setup, include=FALSE}
+library(dplyr)
+library(jsonlite)
+library(tibble)
+library(tidyr)
+library(ggplot2)
+library(knitr)
+knitr::opts_chunk$set(echo = TRUE)
+# library(kableExtra)
+# hook_output <- knit_hooks$get("output")
+# knit_hooks$set(output = function(x, options) {
+#    lines <- options$output.lines
+#    if (is.null(lines)) {
+#      return(hook_output(x, options))  # pass to default hook
+#    }
+#    x <- unlist(strsplit(x, "\n"))
+#    more <- "..."
+#    if (length(lines)==1) {        # first n lines
+#      if (length(x) > lines) {
+#        # truncate the output, but add ....
+#        x <- c(head(x, lines), more)
+#      }
+#    } else {
+#      x <- c(more, x[lines], more)
+#    }
+#    # paste these lines together
+#    x <- paste(c(x, ""), collapse = "\n")
+#    hook_output(x, options)
+#  })
+```
+
+------------------------------------------------------------------------
+
+::: {.alert .alert-info style="color:black"}
+**Submission Instructions**
+
+The following questions are to be completed using ggplot in R. If you are doing this assignment using Python please refer to the lab2-python.ipynb file instead of this R markdown notebook. **Please note that two of your four assignments must be submitted using R and the other two must be submitted using Altair** (you choose which ones). Submit your completed assignment to Canvas, that is:
+
+-   upload a rendered <code>.html</code> version of your assignment
+-   and the source file (either a <code>.ipynb</code> or <code>.Rmd</code> file)
+
+If you are doing this assignment using Python you might consider editing the `lab2-python.ipynb` file instead of this R markdown script.
+:::
+
+
+**Get motivated!**
+
+Let's suppose we would like to start our very own movie streaming service. To set ourselves apart, this platform aims to show only the "best" movies. In this assignment, we will be aiming to understand the movie market: *which companies produces what kind of movies, and which receive good scores*. Then we can have a curated collection of movies on our platform which we'll call: Bestflix™.
+
+![](img/bestflix.png)
+
+
+In this notebook, we will focus on Exploratory Data Analysis (EDA),
+both for single numerical columns, pairwise numerical columns,
+numerical columns conditioned on categorical columns and combinations of categorical columns. Let's get started!
+
+
+
+#  Single numerical columns
+
+```{r echo=FALSE}
+totalpts = totalpts + 2
+```
+
+<div class="alert alert-success" style="color:black">
+
+## Question     
+rubric={reasoning:1,accuracy:1}
+
+<h4>R</h4>
+<p>In the beginning of EDA, it can be good to look at some textual summaries, just to get an idea of what to plot. Download the file <code>lab2-movies.json</code> from Canvas, and then run the code for reading in the data provided below.   Using dataframe methods, do the following in three different cells:</p>
+    
+<ol>
+<li>Display the first few rows of the data.</li>
+<li>Display info about all columns, including their data types.</li>
+<li>Display a summary description of the data frame's numerical columns only.</li>
+</ol>
+ 
+</div>
+
+```{r, eval=FALSE}
+library(rjson)
+library(tidyverse, quietly = TRUE)
+movies <- fromJSON(file = 'lab2-movies.json') %>%
+    as_tibble() %>%
+    unnest(-c(studios, genres))
+# YOUR ANSWER GOES HERE
+
+print(head(movies)) # first few rows
+print(glimpse(movies)) # column info
+print(summary(movies[, sapply(movies, is.numeric)])) # summary statistics
+```
+
+
+
+
+
+```{r echo=FALSE}
+totalpts = totalpts + 4
+```
+
+
+<div class="alert alert-success" style="color:black">
+
+## Question 
+rubric={viz:2,accuracy:1,reasoning:1}
+
+<ol>
+<li>Create a single histogram of a numerical column of your choice, choosing an appropriate number of bins and set the figure height to 100.</li>
+<li>Create a kernel density estimate of the same numerical column from part 1..</li>
+<liTry setting the opacity (<code>alpha</code> parameter) to a between 0 and 1 and the <code>fill</code> parameter to a color name as a string to get a shaded density. Hint: set these inside the geom, not inside the aes function.</li>
+<li>Do you think either of this density plot or the histogram in the previous exercise gives you a better understanding of the underlying data? Which one and why?</li>
+</ol>
+ 
+</div>
+
+```{r question_histogram, fig.height=100}
+
+head(movies)
+
+ggplot(movies, aes(x=runtime)) + 
+  geom_bar(stat = "bin", binwidth=15)
+
+```
+
+```{r question_kernal}
+
+
+ggplot(movies, aes(x=runtime)) + 
+  geom_density(fill = "red", color = "black", alpha = 0.3)
+
+```
+
+
+I think the histogram gives a better understanding of the underlying data because I can easily see under which bin the most number of movie run times fall under, whereas the density plot just looks like a line graph with the area filled in. 
+
+```{r echo=FALSE}
+totalpts = totalpts + 4
+```
+
+<div class="alert alert-success" style="color:black">
+
+## Question 
+rubric={viz:2,accuracy:2}
+    
+<ul>
+    <li>Pipe the data fame's numerical columns (except <code>id</code>) into ggplot (the <code>.select_if()</code> method can help here, or you can do it manually).</li>
+<li>Copy the code from your density plot above and paste it here. Modify the code so that it accepts the piped dataframe and plots one density estimate per column in a plot grid with 2 columns and 3 rows. Don’t use a loop, use pivoting and faceting instead (I will post an example on how to do this on Canvas if we don't have time to cover it in lecture).</li>
+</ul>
+
+</div>
+
+# Pairwise numerical columns
+
+```{r echo=FALSE}
+totalpts = totalpts + 4
+```
+
+
+<div class="alert alert-success" style="color:black">
+
+## Question 
+rubric={viz:2,accuracy:2}
+    
+Next, let’s look at the relationships between pairs of numerical columns. For this we will create a scatterplot matrix (SPLOM) for all numerical columns except <code>id</code>.  I recommend starting with creating a single scatter plot and gradually substituting in the repeating columns.
+
+<ol>
+<li>Include the origin regardless if the data actually starts at zero.</li>
+<li>Reduce each subplots height and width to be able to see the entire lower diagonal in view.</li>
+<li>Set the opacity and size of the points in order for the plots to appear less saturated.</li>
+<li>Configure the axes to remove or shrink the font of the axes labels (and optional reduce the axes titles' size). Plots don't have to look perfect during EDA, the point here is to pick up trends, not necessarily to read all labels.</li>
+</ol>
+<p>Hint: There is nothing built into <code>ggplot</code> for this but the <code>GGally</code> package has a handy <code>ggpairs</code> function for this, which also plots single column densities on the diagonal and correlation coefficients on the upper corner. Install this package an then use the <code>ggpairs</code>.</p>
+
+
+</div>
+
+
+```{r echo=FALSE}
+bonuspts = bonuspts + 1
+```
+
+
+
+<div class="alert alert-warning" style="color:black">
+
+## Question (Bonus)
+rubric={accuracy:0.5,reasoning:0.5}
+    
+    
+
+<p><a href="https://r-coder.com/correlation-plot-r/">Correlation plots</a> provide another way of viewing the pairwise relationships between numerical columns. While you can construct this manually in  <code>ggplot</code> using the (see an example <a href="http://www.sthda.com/english/wiki/ggplot2-quick-correlation-matrix-heatmap-r-software-and-data-visualization">here</a>) there are a number of packages that aid in creating correlations plots.  For example, the <code>GGally</code> package,  has a handy <code>ggcorr</code> function for doing so; more examples (with code) can be seen <a href="https://r-coder.com/correlation-plot-r/">here</a>.</p>
+
+<ol type="1">
+<li>Using those examples as guides, create your own variation of a correlation plot.</li>
+<li>Compare this to the plot you made with the SPLOM above. Which visualization do you prefer for the relationship between pairs of numeric columns? Briefly explain why in &lt;90 words.</li>
+</ol>
+
+</div>
+
+
+# EDA of numerical columns conditioned on a categorical column (genres)
+
+```{r echo=FALSE}
+totalpts = totalpts + 3
+```
+
+
+<div class="alert alert-success" style="color:black">
+
+## Question 
+rubric={viz:1,accuracy:2}
+
+<p>Lots of interesting variation in the histograms above! I wonder if some of it can be explained by genre or by which studio made the film ... This could be valuable information for Bestify™ so let’s find out!</p>
+<p>We’ll start with the movie genres. If you look at the data frame, you can see that each film has multiple genres in a list. This is not ideal and means we must make a decision if we are counting the film once per genre or once overall. Since we have no information about which is the main genres, I suggest we go ahead and count it once per genre. In order to do this we need to replicate each row once per genre in the genres column. In the tidyverse, this is referred to as "unnesting". Using the helper code below, create a new data frame  that unnets the vectors from the genres column. <a href="https://tidyr.tidyverse.org/reference/nest.html">Check out this tidyr doc for a simpler example</a>.</p>
+
+<ol>
+<li>Use this new dataframe and create multiple boxplots inside a single figure with genres on the y-axis and revenue on the x axis.</li>
+<li>Boxplots can only be sorted by passing an explicit list in the sort column, in this case the genres. I want you to sort the genres by median revenue, so that the median lines of the box plot are nicely sorted. I have given you a skeleton below where you can fill in the blanks, but you are also free to do it your own way. In the en you need a list that you can pass to <code>sort</code> inside <code>alt.Y()</code>.</li>
+<li>Remember that boxplots hide how many observations there are in each group. In order to determine how many movies went into the boxplots we just created, let's make a barplot with the counts on the x-axis and the genres on the y-axis.  Sort the bars by count such that the biggest bar closest to the x-axis.</li>
+</ol>
+
+</div>
+
+```{r}
+# free_genres <- movies %>% unnest(genres)
+# free_genres <- free_genres %>%
+#     _____(genres) %>%
+#     ____(median_revenue = ________)
+
+# YOUR ANSWER GOES HERE
+```
+
+
+
+```{r echo=FALSE}
+totalpts = totalpts + 5
+```
+
+<div class="alert alert-success" style="color:black">
+
+## Question 
+rubric={viz:1,accuracy:2,reasoning:2}
+
+<ol type="1">
+<li>Copy the code from you boxplot above and use the same strategy as for the histograms to repeat this boxplot for all numerical values. Ensure that categories are in the same order across all facets (so that we don't have to keep track of how they move around between subplots).</li>
+<li>Study the boxplots you just created and reflect over what you see. Identify a research oriented question that you would be interested in exploring (this does not have to relate to Bestflix) and briefly motivate why you think this would be interesting (&lt;90 words). This is an open ended question because EDA is often open ended. And even when you go in with one particular hypotheses, you must stay open to what the data tells you and
+be able to detect interesting relationships that you did not foresee ahead of time.</li>
+</ol>
+ 
+</div>
+
+</div>
+
+
+```{r echo=FALSE}
+totalpts = totalpts + 3
+```
+
+<div class="alert alert-success" style="color:black">
+
+
+## Question 
+rubric={viz:1,accuracy:2}
+    
+    
+<ol type="1">
+<li>Use this new dataframe and create multiple violinplots inside a single figure by having genres on the y-axis and revenue on the x axis.</li>
+<li>Read the documentation of the violin plot to find out how you can use its parameters to add a line for the median (hint: the same as quantile 0.5).</li>
+<li>We need to create a new column for sorting using <code>mutate()</code>. I want you to sort the genres by median revenue, so that the median lines of the violin plots are nicely sorted. I have given you a skeleton below where you can fill in the blanks, but you are also free to do it your own way. Then sort by this new column (I will post an example on how to do this on Canvas if we don't have time for it in lecture).</li>
+</ol>
+
+</div>
+
+```{r echo=FALSE}
+totalpts = totalpts + 3
+```
+
+
+<div class="alert alert-success" style="color:black">
+
+
+## Question 
+rubric={viz:1,accuracy:2}
+
+<ol type="1">
+<li>Copy the code from your violin plot above and use the same faceting strategy as for the histograms to repeat this violin plot for all numerical values. Sort the boxplots by by median revenue.
+<ul>
+<li>In contrast to the histograms, you will here need to save the genres and medium_income columns by using the <code>!</code> syntax in your call to <code>pivot_longer</code>, see the <a href="https://tidyr.tidyverse.org/reference/pivot_longer.html">example in the manual for how to do this</a>.</li>
+<li>You will also need to define both x and y in your <code>aes()</code>, just like in the single violinplot you made above.</li>
+</ul></li>
+</ol>
+
+    
+</div>
+
+
+
+
+
+```{r echo=FALSE}
+bonuspts = bonuspts + 1
+```
+
+<div class="alert alert-warning" style="color:black">
+
+## Question (Bonus)
+rubric={viz:0.5,accuracy:0.5}
+
+<ol type="1">
+<li> Upon reading the <a href="https://ggplot2.tidyverse.org/reference/geom_violin.html">documentation of the violin plot</a> you will notice there exists an argument for scaling the area of the violin plots according to the number of observations. Copy and edit the code from the faceted violin plots above such that large violins correspond to large sample sizes. </li>
+<li> 
+Compare this visualization to the boxplot and barplot we created in 3.1.  Which approach do you think is clearer for getting a feeling for the number of observation in each group and why?
+</li>
+</ol>
+
+</div>
+
+
+
+
+<div class="alert alert-secondary" style="color:black">
+
+<b>THIS QUESTION WILL NOT BE GRADED FOR MARKS</b> 
+
+For  optional practice, investigate how the numerical columns  vary between production studios! Some example questions are provided below to guide you, but feel free to get creative and answer your own data-driven questions!
+ 
+<p>Let’s see how the numerical columns vary with different production studios.</p>
+<ol type="1">
+<li>Create a new dataframe from exploding/unnesting the <code>studios</code> column in the <code>movies</code> dataframe. You can use my code from above to guide you.</li>
+<li>Create a similar sorting list as before, but this time with the studies sorted by median revenue.</li>
+<li>Create the same repeated boxplots for the studios. A tip when you are creating similar plots for two different sections of your notebook, is to use a different color for each so that it is easy to orient yourself (unless you are encoding color as a visual aesthetic of course, but we’re not doing that here). Pick any HTML color either via its hex code or by choosing a name from <a href="https://stackoverflow.com/a/37232759/2166823">this list of named colors</a>. Color all the bars and boxes in this color by setting it inside <code>mark_boxplot()</code> / <code>geom_boxplot()</code>.</li>
+<li>Create the same barplot of counts as above for the studios. Color the bars in the same colors as the boxplots.</li>
+<li>Reflect on the information in the boxplot and / or the barplot. Identify two interesting relationships / questions / discoveries that stand out to you and that you would want to explore further. Briefly motivate why (&lt;90 words).</li>
+</ol>
+
+</div>
+
+#  EDA of categorical columns
+
+
+```{r echo=FALSE}
+totalpts = totalpts + 3
+```
+
+<div class="alert alert-success" style="color:black">
+
+## Question
+rubric={viz:1,accuracy:1,reasoning:1}
+
+As the final step of our EDA, let’s evaluate if studios preferentially produce some movie genres over others.
+<ol type="1">
+<li>Unnest both the <code>'studio'</code> and the <code>'genres'</code> columns via piping. We need both since we will be counting the number of observations in each studio/genre combination.</li>
+<li>Count the total number of movies in each of the combinations of genres and studio using <code>add_count()</code>. This will create a new column called <code>n</code>.  Create a heatmap of counts by mapping the appropriate features to  aesthetics encoding using <code>geom_tile</code>.</li>
+<li>Go through the <a href="http://ggobi.github.io/ggally/articles/ggally_plots.html">GGally example plots</a> and find an addition plot that you think is suitable for showing the count of the combination of categorical variables. Use this plot to visualize the counts.</li>
+<li>Which of the plots in 2 and 3 do you think gives you the clearest understanding of how the distribution of genres within each studio? Justify your answer. </li>
+</ol>
+
+</div>
+
+
+
+```{r echo=FALSE}
+bonuspts = bonuspts + 1
+```
+
+
+<div class="alert alert-warning" style="color:black">
+
+## Question (Bonus)
+rubric={accuracy:1}
+
+The plots above are great for comparing absolute counts,
+but that means that studios with smaller production volume gets drowned out.
+Let's instead visualize the <em>proportion</em> within each studio for each genre.
+Calculate the proportion for each studio - genre pair,
+so that for each studio, the genre proportions adds up to 1.
+Visualize with your favorite categorical count plot.
+
+
+</div>
+
+
+Excellent work!! We're proud of your efforts to get Bestflix off the ground
+and will be in contact when we launch our next project: Bestify.
+
+---
+
+# Submission to Canvas
+
+When you are ready to submit your assignment do the following:
+
+1. Run all chunks in your Rmd file to  make sure there are no errors by `Session -> Restart R and Run All Chunks`
+2. Knit your R Markdown to .html format by clicking the Knit button.
+3. Submit your source file and rendered HTML document to Canvas before the deadline.
+
+
+
+
+This assignment is worth `r totalpts` marks `r ifelse(bonuspts > 0 , paste0("+ ", bonuspts, " bonus points"), "")`
