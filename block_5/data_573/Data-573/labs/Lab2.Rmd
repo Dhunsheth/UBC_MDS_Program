@@ -1,0 +1,289 @@
+---
+title: "Lab 2"
+author: "Jeff"
+date: "March 12, 2024"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Multidimensional Scaling
+
+"As of mid-2018, the Google Maps Platform requires a registered API key", so the gmaps example shown on lecture slides is no longer as simple to go through.
+
+How do we do on a similar, non-local map? In R, there is a distance matrix for a bunch of European cities:
+```{r}
+labels(eurodist)
+```
+
+If we run MDS on this distance matrix, we get the following results:
+
+```{r}
+plot(cmdscale(eurodist)[,1], cmdscale(eurodist)[,2], type = "n", xlab = "", ylab = "", asp = 1, axes = FALSE, main = "MDS Results on eurodist")
+text(cmdscale(eurodist)[,1], cmdscale(eurodist)[,2], rownames(cmdscale(eurodist)), cex = 0.6)
+```
+
+Again, something's not right. Specifically, we would expect Stockholm to be the most northern city of the bunch and Athens to be the most southern. Let's simply multiply the second column by -1.
+
+```{r}
+plot(cmdscale(eurodist)[,1], -cmdscale(eurodist)[,2], type = "n", xlab = "", ylab = "", asp = 1, axes = FALSE, main = "MDS Results on eurodist")
+text(cmdscale(eurodist)[,1], -cmdscale(eurodist)[,2], rownames(cmdscale(eurodist)), cex = 0.6)
+```
+
+This is more promising, you can compare to the europecircled.png file on Github to see how well MDS has done.
+
+## FA on Cars
+Let's run FA on the `car93.csv` data set that we looked at a number of weeks ago with PCA...
+```{r}
+card <- read.csv("~/Downloads/car93.csv", stringsAsFactors = FALSE)
+```
+
+Let's fit for two factors
+
+```{r}
+facar <- factanal(card[,-c(1:3)], 2, scores="regression")
+facar
+```
+
+The print method will leave empty any coefficients that fall below some threshold (I think below .10).
+
+We can see approximately the same amount of variation described by the two factors (74.5%) as was described by the two components (78%), and also fairly similar loadings on the first factor as the first component. That said, the second component is a little less intuitive than it was with PCA.
+
+Note the provided p-value (highly significant). This hypothesis test has a null hypothesis that 2 factors are sufficient for fitting this data...therefore a significant p-value is telling you that there is evidence to suggest that 2 factors are NOT sufficient.
+
+In any case, let's take a look at the scores on the first two variables
+
+```{r}
+plot(facar$scores)
+```
+
+This looks fairly similar to the PCA results. Let's see what happens when clustering
+```{r}
+faclust <- hclust(dist(facar$scores))
+plot(faclust)
+```
+
+Hmm, this looks more like three groups
+```{r}
+table(card[,3], cutree(faclust,3))
+```
+
+In this case, we still have a mostly small car group and a mostly large car group, but also a group made of half of the midsize cars. Which leads to questioning why those midsizes versus the others?
+
+```{r}
+cgroups <- cutree(faclust,3)
+card[cgroups==2 & card$Type=="Midsize", 1:3]
+card[cgroups==3 & card$Type=="Midsize", 1:3]
+```
+
+As you can see, that second group appears to correspond to the luxury midsize vehicles. So then the groups discovered are approximately 'smaller cars', 'luxury midsize cars', and 'larger cars'.
+
+
+## PCA on Faces
+Find the `pain.rda` file on github. It's the faces data that you saw in lecture. 
+```{r}
+load("~/Downloads/pain.rda")
+```
+I will run you through all of the steps used to generate the outputs you saw in lecture. First, note the structure of the data
+
+```{r}
+dim(pain)
+```
+
+With a bit of knowledge of the data, it's clear this is an array where the first two dimensions make up the pixels and the third dimension indexes the different pictures. Let's try out the image function!
+
+```{r}
+image(pain[,,1])
+```
+
+Two problems. It's obviously sideways, but I'm also not a big fan of the heatmap colour-scheme. Let's fix both...
+
+```{r}
+image(t(pain[,,1]), col=gray((0:32)/32))
+```
+
+Much better, the following code can cycle you through all the pictures (3 a second)...recommend to set `eval=FALSE` for the markdown document, and you'll need ffmpeg installed on your computer (probably not worth troubleshooting across operating systems and whatnot)
+
+```{r, fig.show='animate',  ffmpeg.format = 'gif', dev = 'jpeg', interval=1}
+for(i in 1:84){
+  image(t(pain[,,i]), col=gray((0:32)/32))
+  #Sys.sleep(1/3)
+}
+```
+
+Alright, time to set this data up for analysis. We want each image flattened out as a vector...so
+
+```{r}
+flim <- apply(pain, 3, as.vector)
+dim(flim)
+```
+
+dimensions aren't quite what we're used to (p x n)...so we'll just transpose to make it (n x p).
+
+```{r}
+flim <- t(flim)
+dim(flim)
+```
+
+Now to run PCA
+
+```{r}
+prface <- prcomp(flim, scale.=TRUE)
+```
+
+Let's try to take a peak at the first eigenvector. Note that the eigenvectors are flattened images (as a vector instead of a matrix), so we need to think back to how it was flattened in the first place
+
+```{r}
+image(matrix(prface$rotation[,1], 241, 181), col=gray((0:32)/32))
+```
+
+Looks like we guessed right for unflattening, but we need to transpose again
+
+```{r}
+image(t(matrix(prface$rotation[,1], 241, 181)), col=gray((0:32)/32))
+```
+
+Now let's get the 16 eigenvectors in one plot. To do this, we will need to change around the device window settings. First part is to tell it to split the window into 4x4, and the next two parts will get rid of the majority of the margins
+
+```{r}
+par(mfrow=c(4,4), omi=c(0,0,0,0), mai=c(0.1,0.1,0.1,0.1))
+for(i in 1:16){
+  image(t(matrix(prface$rotation[,i], 241, 181)), col=gray((0:32)/32), xaxt="n", yaxt="n")
+}
+```
+
+Again, we can walk through these pictures a bit. The first eigenvector seems to be mostly focused on picking up the background, nose, mouth, and eyebrows. The second brings in most the rest of the facial features, third cheeks, fourth eyes and chin, etc. It's again noteworthy that images could score either negative or positive on these features. AKA, one could add lots of white from vector 2 for the face with a positive score, and then subtract vector 4 to set the eyes deeper with a negative score.
+
+
+And what about that scaling we did, what's the average face?
+
+```{r}
+par(mfrow=c(1,1))
+image(t(matrix(prface$center, 241, 181)), col=gray((0:32)/32), xaxt="n", yaxt="n")
+```
+
+Now let's go about reconstructing approximations of the original images with the PCs. First attempt: 10 PCs.
+
+```{r}
+i <- 10
+reconst <- (t(prface$rotation[,1:i] %*% t(prface$x[,1:i])))
+image(t(matrix(reconst[1,], 241, 181)), col=gray((0:32)/32), xaxt="n", yaxt="n")
+```
+
+This seems a little too negative looking. Well...we forgot about all that scaling! In order to reconstruct, we have to re-multiply by the standard deviation, and then re-add the mean. The easiest way to do this is to use the scale function again
+
+```{r}
+reconst <- scale(reconst, center=FALSE, scale=1/prface$scale)
+reconst <- scale(reconst, center=-prface$center, scale=FALSE)
+image(t(matrix(reconst[1,], 241, 181)), col=gray((0:32)/32), xaxt="n", yaxt="n")
+```
+
+And compare to the original
+```{r}
+par(mfrow=c(1,2), omi=c(0,0,0,0), mai=c(0.1,0.1,0.1,0.1))
+image(t(matrix(reconst[1,], 241, 181)), col=gray((0:32)/32), xaxt="n", yaxt="n")
+image(t(pain[,,1]), col=gray((0:32)/32), xaxt="n", yaxt="n")
+```
+
+Overall, not a terrible approximation. The general structure of the face looks pretty good, though the mouth could still use some work!
+
+This will recreate the video of the approximations for 4 images while we iterate from using just one PC to using all 84 PCs. Again, `eval=FALSE` is a good idea for the markdown document. `Sys.sleep` may need to be played with for your system to generate everything in time.
+
+```{r, fig.show='animate',  ffmpeg.format = 'gif', dev = 'jpeg', interval=1}
+for(i in 1:84){
+  reconst <- (t(prface$rotation[,1:i] %*% t(prface$x[,1:i])))
+  reconst <- scale(reconst, center=FALSE, scale=1/prface$scale)
+  reconst <- scale(reconst, center=-prface$center, scale=FALSE)
+  par(mfrow=c(2,4), omi=c(0,0,0,0), mai=c(0.1,0.1,0.1,0.1))
+  image(t(matrix(reconst[21,], 241, 181)), col=gray((0:32)/32), xaxt="n", yaxt="n")
+  image(t(pain[,,21]), col=gray((0:32)/32), xaxt="n", yaxt="n")
+  image(t(matrix(reconst[25,], 241, 181)), col=gray((0:32)/32), xaxt="n", yaxt="n")
+  image(t(pain[,,25]), col=gray((0:32)/32), xaxt="n", yaxt="n")
+  image(t(matrix(reconst[44,], 241, 181)), col=gray((0:32)/32), xaxt="n", yaxt="n")
+  image(t(pain[,,44]), col=gray((0:32)/32), xaxt="n", yaxt="n")
+  image(t(matrix(reconst[58,], 241, 181)), col=gray((0:32)/32), xaxt="n", yaxt="n")
+  image(t(pain[,,58]), col=gray((0:32)/32), xaxt="n", yaxt="n")
+  #Sys.sleep(1/2)
+}
+```
+
+## NMF
+Now we will go through NMF. Here is my NMF code, as promised it is a surprisingly simple algorithm to write!
+
+```{r}
+#x: the non-negative data (if any negatives exist, the whole data is shifted)
+#q: the number of factors/bases
+#eps: convergence criteria (lack of progress on sum squared error)
+#maxit: convergence criteria (max iteration when lack of progress not met)
+#w: n by q scores on factors
+#h: q by p observed factors/bases 
+#By default (when w, h NULL) both w and h are initialized randomly
+nmf <- function(x, q, eps=0.001, maxit=2000, w=NULL, h=NULL){
+  n <- nrow(x)
+  p <- ncol(x)
+  if(any(x<0)){x <- as.matrix(x)+abs(min(x))}
+  else{x <- as.matrix(x)}
+  if(is.null(w)){
+    w <- matrix(runif(n*q, min(x), max(x)), n, q)
+  }
+  if(is.null(h)){
+    h <- matrix(runif(p*q, min(x), max(x)), q, p)
+  }
+  ed <- sum((x-w%*%h)^2)
+  conv <- FALSE
+  ctr <- 1
+  while(!conv){
+    ctr <- ctr+1
+    h <- h * (t(w) %*% x) / (t(w) %*% w %*% h) 
+    w <- w * (x %*% t(h)) / (w %*% h %*% t(h))
+    wh <- w%*%h
+    ed[ctr] <- sum((x-wh)^2)
+    if((ed[ctr-1]-ed[ctr] < eps)|(ctr==maxit)){
+      conv <- TRUE
+    }
+  }
+  list(ed=ed, w=w, h=h, x=x)
+}
+```
+
+This takes about 3.5 mins to run on my (relatively old) desktop, hence the `eval=FALSE`, though I think it's worthwhile to run it in lab.
+
+```{r eval=FALSE}
+set.seed(5213541)
+test <- nmf(flim, 16, maxit=600)
+image(t(matrix(test$h[2,], 241, 181)), col=gray((0:32)/32), xaxt="n", yaxt="n")
+```
+
+Now we can look at the bases. Note that for NMF there is no inherent ordering to the bases. To me, it appears that the 14th basis might be closest to the first eigenvector (it captures mostly the background light).
+
+```{r eval=FALSE}
+par(mfrow=c(4,4), omi=c(0,0,0,0), mai=c(0.1,0.1,0.1,0.1))
+for(i in 1:16){
+  image(t(matrix(test$h[i,], 241, 181)), col=gray((0:32)/32), xaxt="n", yaxt="n")
+}
+```
+
+We can look at reconstructions and compare with pca
+
+```{r eval=FALSE}
+nmfrec <- test$w %*% test$h
+par(mfrow=c(4,3), omi=c(0,0,0,0), mai=c(0.1,0.1,0.1,0.1))
+image(t(matrix(reconst[21,], 241, 181)), col=gray((0:32)/32), xaxt="n", yaxt="n")
+image(t(matrix(nmfrec[21,], 241, 181)), col=gray((0:32)/32), xaxt="n", yaxt="n")
+image(t(pain[,,21]), col=gray((0:32)/32), xaxt="n", yaxt="n")
+image(t(matrix(reconst[25,], 241, 181)), col=gray((0:32)/32), xaxt="n", yaxt="n")
+image(t(matrix(nmfrec[25,], 241, 181)), col=gray((0:32)/32), xaxt="n", yaxt="n")
+image(t(pain[,,25]), col=gray((0:32)/32), xaxt="n", yaxt="n")
+image(t(matrix(reconst[44,], 241, 181)), col=gray((0:32)/32), xaxt="n", yaxt="n")
+image(t(matrix(nmfrec[44,], 241, 181)), col=gray((0:32)/32), xaxt="n", yaxt="n")
+image(t(pain[,,44]), col=gray((0:32)/32), xaxt="n", yaxt="n")
+image(t(matrix(reconst[58,], 241, 181)), col=gray((0:32)/32), xaxt="n", yaxt="n")
+image(t(matrix(nmfrec[58,], 241, 181)), col=gray((0:32)/32), xaxt="n", yaxt="n")
+image(t(pain[,,58]), col=gray((0:32)/32), xaxt="n", yaxt="n")
+```
+
+
+
+

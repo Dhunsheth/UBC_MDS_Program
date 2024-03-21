@@ -1,0 +1,551 @@
+---
+title: "Lab 1"
+author: "Jeff"
+date: "February 27, 2024"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## PCA on Nutrition data
+Download the nutrition data from github. It contains several thousand food items and some standard nutritional content (calories, fat, vitamins, etc) along with a food group designation. This data originates from the USDA and note that all items are measured on 100g, making observations inherently comparable.
+
+```{r}
+load("~/Downloads/nutrition.rdata")
+dim(nutrition)
+```
+
+It's noteworthy that there are some missing values in this data, but what happens if we simply remove all NA cases...
+
+```{r}
+dim(na.omit(nutrition))
+```
+
+Seems a bit extreme. Maybe we should check which columns are containing a lot of NAs...
+
+```{r}
+colSums(is.na(nutrition))
+```
+
+Unfortunately, the NAs are quite spread out among several measures that we probably don't want removed (calories for example). If we were very focused on this application, we might delve a bit further to find out why there are so many NAs, and whether they should, say, be treated as 0's instead.
+
+```{r}
+nutrition <- na.omit(nutrition)
+```
+
+Always a good idea to explore the data a bit further...
+
+```{r}
+summary(nutrition)
+```
+
+This shows us that even though food amounts were standardized, it's pretty clear that the variables measured are on vastly different scales. As such, we should be careful to scale any PCA performed.
+
+
+```{r}
+nupca <- prcomp(nutrition[,-c(1,28)], scale.=TRUE)
+summary(nupca)
+```
+
+Using the Kaiser criterion would suggest retaining 8 components, but that would only retain approximately 66\% of the variability in the data. If we wanted to retain 90\% of the variation, then we would need to keep 17 components. We can also check a scree plot
+
+```{r}
+plot(nupca, type="lines")
+```
+
+but by default the x-axis isn't long enough, let's expand
+
+```{r}
+plot(nupca, type="lines", xlim=c(1,26))
+```
+
+hmm, that didn't work...little bit of searching shows that the function `screeplot` is the default `plot` method for a `prcomp` object, and the argument we want to increase is actually `npcs`...
+
+```{r}
+plot(nupca, type="lines", npcs=26)
+```
+
+After all that work, there's no clear picture of how many components to retain using a scree plot. Best argument might be for 3 components, but you'd be leaving a lot of variance on the table.
+
+In any case, let's take a look at the first three components
+
+```{r}
+nupca$rotation[,1:3]
+```
+
+To make it more readable, let's do some rounding
+
+```{r}
+round(nupca$rotation[,1:3], 2)
+```
+
+Let's make it even more readable. Since we have lots of values here, it is often easier to view just the variables that surpass some threshold of absolute magnitude. For example...
+
+```{r}
+loadi <- round(nupca$rotation[,1:3], 2)
+loadi[abs(loadi)<0.2] <- NA
+loadi
+```
+
+Let's start with the first component. This component has relatively low loading of nearly all the variables. Interestingly, all of the loadings (including those below the threshold) are negative. That is, every variable in the data set is loading in the same direction. Since it doesn't undermine the underlying mathematics, let's multiply the first component by negative 1.
+
+```{r}
+loadi[,1] <- -loadi[,1]
+```
+
+Now we can reasonably interpret this component as something like "nutrient density". We would expect any food item that scores high would be nutrient rich, and anything scoring low would be relatively void of nutrients (like water). Let's see what the max and min food items are on this...and keep in mind that we would still need to multiply our scores by -1 since they were computed on the original loadings...
+
+```{r}
+head(nutrition[order(-nupca$x[,1], decreasing=TRUE),1])
+tail(nutrition[order(-nupca$x[,1], decreasing=TRUE),1])
+```
+
+On first blush this appears a bit unintuitive as most of the entries on both lists are drinks. BUT READ CLOSELY! The first, third, and sixth most nutrient "dense" are actually POWDERED drink mixes. So 100g of those probably make a substantial amount of drink, and are likely packed with sugar (hence very high in calories) and in some cases it even mentions that they have added vitamins. In fact, all of the top 6 are concentrated/dried items. The bottom six, on the other hand, are liquid drinks specifically void of most nutrients...diet pop, sparkling water, and herbal tea.
+
+Let's move on to the second component...
+
+```{r}
+loadi
+```
+
+Any item scoring high on PC2 will have high protein/fat/cholesterol/vitaminB, and low carbs/fiber/iron/magnesium/manganese/potassium. For the most part, it seems like a measure of "meatiness". Let's look at the top 6 and bottom 6 on this
+
+```{r}
+head(nutrition[order(nupca$x[,2], decreasing=TRUE),1])
+tail(nutrition[order(nupca$x[,2], decreasing=TRUE),1])
+```
+
+For the most part our interpretation was correct (though I forgot how protein-rich and carb-less nuts were). At least one can't get much further away from meat than unsweetened tea powder!
+
+Finally, let's look at component 3
+
+
+```{r}
+loadi
+```
+
+Anything scoring high on this component will be low in calories and fat, but high in vitamins. So generally speaking, let's just call it "vitamin-dense".
+
+```{r}
+head(nutrition[order(nupca$x[,3], decreasing=TRUE),1])
+tail(nutrition[order(nupca$x[,3], decreasing=TRUE),1])
+```
+
+The bottom six are no brainers (basically just fat-based items), but the top six are again a bit strange. We have, once more, our powdered drink mixes, freeze dried peppers, and beef liver!
+
+
+## PCAReg on Nutrition data
+Let's continue with the nutrition data. We'll keep the same lazy cleaning again just to keep things easy.
+
+```{r}
+#load("~/Downloads/nutrition.rdata")
+#dim(nutrition)
+#nutrition <- na.omit(nutrition)
+colnames(nutrition)
+```
+
+Now then, to set this up in a PCRegression type context, we'll need a natural continuous response variable. I think `calories` is likely the most natural approach since they can come primarily from both fat and carbs. As such, we will need to remove it from the original PCA call.
+
+```{r}
+nupca <- prcomp(nutrition[,-c(1,2,28)], scale.=TRUE)
+summary(nupca)
+```
+
+Again, using the Kaiser criterion would suggest retaining 8 components, but that would only retain approximately 65\% of the variability in the data. In the previous lab we investigated the other standard approaches for component retention...let's not bother for this lab. We'll retain the first 8 components. So, let's pop the scores of the original observations on those 8 components into an object for future use.
+
+```{r}
+scr <- nupca$x[,1:8]
+```
+
+Now we can run PCReg for calories as a response...
+
+```{r}
+pcregmod <- lm(nutrition$calories ~ scr)
+summary(pcregmod)
+```
+
+Cool! Everything appears interesting and useful for modelling. Of course, our PCA was done unsupervised --- therefore, without respect to what we were trying to model (calories). So perhaps PLS can help us improve...
+
+## PLS on nutrition
+We will need the `pls` library here
+```{r}
+#install.packages("pls")
+library(pls)
+```
+
+Now, we will feed the function `plsr` a formula for calories as a response to all other numeric predictors.
+
+```{r}
+nuplsmod <- plsr(calories~., data=nutrition[,-c(1,28)], scale=TRUE, method="oscorespls")
+summary(nuplsmod)
+```
+
+This gives a very different picture...namely that it appears probably 2 components are sufficient (cumulatively explain just over 89\% of the variation in `calories`). Compare that to PCReg --- 8 components explained only 79\% of the variation in `calories`. Clearly an improvement. In fact, if we only take the first two components for PCReg...
+
+```{r}
+pcregmod2 <- lm(nutrition$calories ~ scr[,1:2])
+summary(pcregmod2)
+```
+
+Only 23\%! Hence why PLS is generally a superior approach in a supervised context.
+
+## Caution
+But how would even PLS compare to a domain-wise and straightforward model...
+
+```{r}
+dwmod <- lm(calories~total_fat+carbohydrates, data=nutrition)
+summary(dwmod)
+```
+
+Just slightly more of the variation (90.8\% versus 89.1\%) in `calories` can be explained using an equivalent dimensionality from the original variables.
+
+In machine learning, there is often no substitute for domain-knowledge!
+
+
+## Single linkage chaining
+Let's simulate a weird data set with 2 clusters and a line of points running in between. We'll use manhattan distance for no particular reason other than showing how to specify it...
+
+```{r}
+library(MASS)
+set.seed(3173)
+datagen1 <- mvrnorm(25, c(0,0), matrix(c(1,0,0,1),2,2))
+datagen2 <- mvrnorm(25, c(5,-5), matrix(c(1,0,0,1),2,2))
+datagen <- rbind(datagen1, datagen2)
+x1 <- seq(from=0, to=5, by=0.2)
+x2 <- seq(from=0, to=-5, by=-0.2)
+newvalx <- cbind(x1,x2)
+datagen <- rbind(datagen,newvalx)
+plot(datagen)
+mandist <- dist(datagen,method="manhattan")
+clus1 <- hclust(mandist, method="single")
+plot(clus1)
+```
+
+Using single linkage we have major difficulty finding an underlying group structure. The plot above is a tell-tale sign of the phenomena called "chaining" --- essentially that you keep adding observations to one group for the majority of the algorithm. This problem tends to only be a concern with single linkage...
+
+```{r}
+clus2 <- hclust(mandist, method="average")
+plot(clus2)
+```
+
+Note that switching to euclidean distance doesn't fix the chaining issue, but does result in slightly different groups
+```{r}
+eucdist <- dist(datagen,method="euclidean")
+clus3 <- hclust(eucdist, method="single")
+plot(clus3)
+#Euclidean, complete
+clus4 <- hclust(mandist, method="complete")
+plot(clus4)
+```
+
+Here we specify where to cut the tree by requesting a specific number of groups, and then we can compare results between the manhattan and euclidean clusterings...
+
+```{r}
+mancom <- cutree(clus2,2)
+euccom <- cutree(clus4,2)
+table(mancom,euccom)
+```
+
+No observations are grouped differently, here's a plot for complete linkage on Manhattan distance.
+```{r}
+plot(datagen, col=mancom)
+```
+
+Now euclidean with single linkage, and we will compare the results with euclidean with complete linkage.
+```{r}
+eucsin <- cutree(clus3,2)
+table(euccom,eucsin)
+```
+
+Single linkage makes two groups, one with only two observations in it!
+
+
+## Kmeans
+Let's code up k-means from scratch. We should be able to provide the function with the data `x` and the number of groups `k`.
+
+It's probably best to remind you of the steps of the kmeans algorithm first:
+1. Start with `k` random centroids (let's use points within the data)
+2. Assign all observations to their closest centroid (by euclidean distance)
+3. Recalculate group means. Call these your new centroids.
+4. Repeat 2, 3 until nothing changes.
+
+There are several ways of going about this. Sometimes its easier to just code the actual steps and then back up to setup the loop, etc, but I'll provide the whole thing, with some comments to point out what we're accomplishing with each chunk of the code.
+
+```{r}
+my_k_means <- function(x, k){
+  #1 start with k centroids
+  centrs <- x[sample(1:nrow(x), k),]
+  #start loop
+  changing <- TRUE  
+  while(changing){
+    #2a) calculate distances between all x and centrs
+    dists <- matrix(NA, nrow(x), k)
+    #could write as a double loop, or could utilize other built in functions probably
+    for(i in 1:nrow(x)){
+      for(j in 1:k){
+        dists[i, j] <- sqrt(sum((x[i,] - centrs[j,])^2)) 
+      }
+    }
+    #2b) assign group memberships (you probably want to provide some overview of apply functions) 
+    membs <- apply(dists, 1, which.min)
+    
+    #3) calculate new group centroids
+    oldcentrs <- centrs #save for convergence check!
+    for(j in 1:k){
+      centrs[j,] <- colMeans(x[membs==j, ])
+    }
+    
+    #4) check for convergence
+    if(all(centrs==oldcentrs)){
+      changing <- FALSE
+    }
+  }
+  #output memberships
+  membs
+}
+
+set.seed(5314)
+#debug(my_k_means) #if you want
+test <- my_k_means(scale(faithful), 2)
+plot(faithful, col=test)
+```
+
+Compare to the built in version...
+
+```{r}
+test2 <- kmeans(scale(faithful), 2)
+plot(faithful, col=test2$cl)
+```
+
+
+## Mouse simulation
+We'll talk more about this in the next week or so, but here's a very simple way to see some of the hidden assumptions of k-means in action.
+
+```{r}
+library(mvtnorm)
+set.seed(35151)
+le <- rmvnorm(400, mean = c(-5,7.5))
+re <- rmvnorm(400, mean = c(5,7.5))
+hd <- rmvnorm(400, mean = c(0,0), sigma=7*diag(2) )
+dat <- rbind(le, re, hd)
+plot(dat)
+mickres <- my_k_means(scale(dat), 3)
+plot(dat, col=mickres)
+```
+
+Note how the smaller mouse ears are assumed larger in k-means, even though the groups are relatively well-separated. We can see this by showing a side by side of the truth and what k-means just gave us
+
+```{r}
+par(mfrow=c(1,2))
+plot(dat, col=mickres)
+plot(dat, col=rep(c(1,3,2), each=400))
+```
+
+What about heirarchical?
+
+```{r}
+mickdist <- dist(scale(dat))
+mickhc <- hclust(mickdist, method="average")
+mickhcres <- cutree(mickhc, 3)
+plot(dat, col=mickhcres)
+```
+
+Still not perfect, but not as bad. Some of the other linkage options are worse than what results from k-means as well. 
+
+# Performance metrics
+Now that we have some performance metrics and a few models under our belt, let's do some competing of classification models on the body data set.
+```{r}
+library(gclus)
+data(body)
+body$Gender <- factor(body$Gender)
+```
+
+First up, random forests!
+
+```{r}
+library(randomForest)
+set.seed(4521)
+bodyRF <- randomForest(Gender~., data=body)
+bodyRF
+```
+
+We can see from the output several measures from the OOB observations. Misclassification rate is 0.0375. Now, given the lack of information in the printout (and the help file), we may want to verify whether the columns or rows of the confusion matrix are the ground truth! Easy...
+
+```{r}
+table(body$Gender)
+```
+
+So the response variable has 247 ones (males). Thus from the printed results, we can deduce that the rows are the truth and the columns the prediction. We can use the MLmetrics library to compute some of the measures we've discussed.
+
+```{r}
+library(MLmetrics)
+```
+
+Note that the `LogLoss` function is specifically for binary...there is also `MultiLogLoss` from the same library for multiclass scenarios. 
+
+Judging from help files (fairly sparse), my best guess for the binary version is that we feed it a probability of classifying 1 as the predicted vector...
+
+```{r}
+LogLoss(predict(bodyRF, type="prob")[,2], body$Gender)
+```
+Here's an aggravation. Looks like they want the 0-1 true classification vector as numeric for computation purposes. Here's a quick hack back...
+
+```{r}
+LogLoss(predict(bodyRF, type="prob")[,2], as.numeric(body$Gender)-1)
+```
+
+It's worth pointing out that all of these measures are believable long-run estimates for those metrics since they are computed on the OOB classifications/probabilities.
+
+
+
+
+Now LDA, note the `CV=TRUE` command. The help file suggests that this will provide us classifications and probabilities that correspond to LOOCV.
+
+```{r}
+library(MASS)
+bodylda <- lda(Gender~., data=body, CV=TRUE)
+table(body$Gender, bodylda$class)
+```
+
+So misclassification rate of 9/507 = 0.018.
+
+Now for logloss...
+```{r}
+LogLoss(bodylda$posterior[,2], as.numeric(body$Gender)-1)
+```
+Comparing back to random forests, we can see improvement. Thus providing us an argument that LDA is a better long-run option (since these are cross-validated results).
+
+
+Since sample sizes are large enough, it's likely natural to remove the equal covariance matrix assumption of LDA in favour of QDA. Let's see what happens!
+
+```{r}
+bodyqda <- qda(Gender~., data=body, CV=TRUE)
+table(body$Gender, bodyqda$class)
+```
+Well, that's not promising. One more misclassification!
+
+```{r}
+LogLoss(bodyqda$posterior[,2], as.numeric(body$Gender)-1)
+```
+
+The LogLoss is even more damning, as it approaches the LogLoss of the random forests model (which had significantly more misclassifications). This suggests that the misclassified observations may be under much more false confidence in QDA.
+
+How about k nearest neighbours? Let's just try for k=1 through k=300...
+```{r}
+library(class)
+knnruns <- list()
+for(i in 1:300){
+  knnruns[[i]] <- knn.cv(body[,-25], body$Gender, k=i, prob=TRUE)
+}
+misclass <- unlist(lapply(knnruns, function(v) 507-sum(diag(table(body$Gender, v)))))
+plot(misclass)
+which.min(misclass)
+```
+
+These CV runs suggest that k=3 is best for long-run misclassifications. Now we can take the results from k=3 and check all of our other metrics...
+
+```{r}
+knnbest <- knnruns[[3]]
+table(body$Gender, knnbest)
+```
+The probabilities returned from KNN are given for only the class which was predicted. This is fine for computing LogLoss when doing binary classification...just means a little bit of manual work. Basically we can sum up the `-log(probs)` of the returned probabilities for all the correctly classified, and `-log(1-probs)` for the 11 misclassifications we see in the table, and then divide by `n`...
+
+```{r}
+probs <- attr(knnbest, "prob")
+(sum(-log(probs[body$Gender==knnbest])) + sum(-log(1-probs[body$Gender!=knnbest])))/507
+
+```
+Shoot...an Inf. This means we are 100% confident in at least one incorrect classification. It also means we need a little more work to get a more reasonable LogLoss estimate. We will force the value to be the maximum of the predicted probability or 1e-15...
+
+```{r}
+missedprobs <- 1-probs[body$Gender!=knnbest]
+missedprobs[missedprobs==0] <- 1e-15
+probs[probs==0] <- 1e-15
+(sum(-log(probs[body$Gender==knnbest])) + sum(-log(missedprobs)))/507
+```
+
+Well that looks pretty bad! But wait, we replaced 0's with an extremely small value (1e-15), so note that
+
+```{r}
+-log(1e-15)
+```
+
+is likely ballooning the average substantially. How much of an effect? Well, let's change to 1e-3...
+
+```{r}
+probs <- attr(knnbest, "prob")
+missedprobs <- 1-probs[body$Gender!=knnbest]
+missedprobs[missedprobs==0] <- 1e-3
+probs[probs==0] <- 1e-3
+(sum(-log(probs[body$Gender==knnbest])) + sum(-log(missedprobs)))/507
+```
+Which is much more in line with some of the other models. Though, perhaps models should be more heavily penalized when the say with certainty that there is NO CHANCE that an observation belongs to the CORRECT GROUP!
+
+In any case, we can see that even though KNN results in the same number of misclassifications as LDA, it is overconfident in those incorrect classifications (and also perhaps underconfident in some of its correct choices).
+
+All signs point to LDA as the best model on this data set. If you take a look at some scatterplots, it does seem that normality could possibly hold (approximately) for a lot of the predictor variables, and so in this sense it's probably not all that surprising that LDA works very well.
+
+Furthermore, the assumption of equal covariance matrices for physical measurements on both men and women is not really an outrageous assumption to make. An example of the ramifications of this assumption: on average, any increase in height will lead to an equivalent increase in weight, regardless of reported gender (even if there are different mean vectors across the reported genders).
+
+## Mixture Models
+Keeping in mind that mixture model families can often take some time to fit, we will restrict the number of models considered during many of the model fits for brevity of the lab. I certainly encourage you to explore the softwares in more depth.
+
+First, let's run the popular `mclust` package on the faithful data set
+```{r}
+#install.packages("mclust")
+#install.packages("teigen")
+library(mclust)
+mfaith <- Mclust(faithful, G=1:5)
+```
+
+Rather than scrolling a large table of values, you can view a plot of the BIC values. The X-axis is the number of groups for the clustering solution (called components of the mixture model), and the Y-axis is the BIC (model fitting measure). Each of the covariance structures we discussed in class has a different line on the plot.
+
+```{r}
+plot(mfaith, what="BIC")
+```
+
+The classification plot will provide a visual of each mixture component overlaid on top of the fitted groups.
+```{r}
+plot(mfaith, what="classification")
+```
+
+The uncertainty plot gives you a visual of which observations have relatively unclear classification. The larger the point appears, the more uncertain in the classification we are.
+```{r}
+plot(mfaith, what="uncertainty")
+```
+
+Finally, the density plot will provide the contours of the actual fitted mixture model.
+```{r}
+plot(mfaith, what="density")
+```
+
+Other software is available for similar models under different distributional assumptions. Here's an example on some of Jeff's software, which uses the multivariate t distribution and eigendecomposition constraints on the covariance matrix.
+```{r}
+library(teigen)
+tfaith <- teigen(faithful, Gs=1:5, model="UUUU", scale=FALSE, verbose = FALSE)
+plot(tfaith, what="uncertainty")
+plot(tfaith, what="contour")
+```
+
+The faithful data set is a true unsupervised problem as we don't have known labels. But we can take a look at some of our supervised data sets to investigate how these clustering methods perform with respect to known groups...
+
+```{r}
+library(gclus)
+data(wine)
+twine <- teigen(wine[,-1], Gs=1:5, model="UCCU", scale=FALSE, verbose=FALSE)
+plot(twine, xmarg=1, ymarg=7, what="contour")
+plot(twine, xmarg=1, ymarg=10, what="uncertainty")
+table(wine[,1], twine$classification)
+plot(twine$allbic, type="l")
+points(twine$allbic)
+```
+
+And so we can see (for at least one covariance structure from tEIGEN), that the G=3 group model is chosen on the wine data via the BIC, and the resulting clusters match quite closely to the known group varietals in the data (5 misclassifications).
+
+We can check the ARI using the function from mclust...
+
+```{r}
+adjustedRandIndex(wine[,1], twine$classification)
+```

@@ -1,0 +1,435 @@
+---
+title: "Data-573 Assignment 2"
+author: "Dhun Sheth"
+date: "2024-03-12"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(MASS)
+library(mclust)
+library(ggplot2)
+library(mlbench)
+library(dplyr)
+library(cluster)
+library(mclust)
+library(NMF)
+library(tree)
+```
+
+## Question 1   
+
+### Part A
+```{r}
+data("HouseVotes84")
+data <- HouseVotes84
+new_level <- c("NoVote")
+for (colname in names(data)[-1]) {
+  if (is.factor(data[[colname]])) {
+    current_levels <- levels(data[[colname]])
+    all_levels <- unique(c(current_levels, new_level))
+    data[[colname]] <- factor(data[[colname]], levels = all_levels)
+    data[[colname]][is.na(data[[colname]])] <- new_level
+  }
+}
+head(data)
+```
+
+### Part B
+```{r}
+
+dist_matrix <- daisy(data[-1], metric = "gower")
+
+```
+
+### Part C
+```{r}
+
+hc_single <- hclust(dist_matrix, method = "single")
+hc_complete <- hclust(dist_matrix, method = "complete")
+hc_avg <- hclust(dist_matrix, method = "average")
+
+plot(hc_single, hang = -1, labels = rownames(data))
+plot(hc_complete, hang = -1, labels = rownames(data))
+plot(hc_avg, hang = -1, labels = rownames(data))
+
+clusters <- cutree(hc_complete, k=3)
+conf_matrix <- table(data$Class, clusters)
+print(conf_matrix)
+```
+     
+Complete linkage seems to provide the best results based on comparing the dendrograms. Complete linkage suggests there are 3 groups.    
+
+### Part D
+```{r}
+
+cmd_result <- cmdscale(dist_matrix)
+colors <- ifelse(data$Class == 'democrat', 'blue', 'red')
+color_factor <- factor(colors, levels = c('blue', 'red'))
+
+plot(cmd_result, col = colors, pch = 19)
+legend("topright", legend = c('1','2'), col = levels(color_factor), pch = 19, title = "Class")
+```
+
+### Part E
+```{r}
+
+k_means <- kmeans(cmd_result, 2, nstart=25)
+conf_matrix <- table(data$Class, k_means$cluster)
+print(conf_matrix)
+
+colors <- ifelse(k_means$cluster == 1, 'blue', 'red')
+
+color_factor <- factor(colors, levels = c('blue', 'red'))
+
+plot(cmd_result, col = colors, pch = 19)
+legend("topright", legend = c('1','2'), col = levels(color_factor), pch = 19, title = "Class")
+```
+
+### Part F
+```{r}
+
+mrun <- Mclust(cmd_result, G=1:6)
+t(mrun$BIC)
+
+conf_matrix <- table(data$Class, mrun$classification)
+print(conf_matrix)
+
+colors <- mrun$classification
+colors <- replace(colors, colors==1,"blue")
+colors <- replace(colors, colors=="2","red")
+colors <- replace(colors, colors=="3","green")
+colors <- replace(colors, colors=="4","orange")
+colors <- replace(colors, colors=="5","purple")
+
+color_factor <- factor(colors, levels = c('blue', 'red', 'green', 'orange', 'purple'))
+
+plot(cmd_result, col = colors, pch = 19)
+legend("topright", legend = c('1','2', '3', '4', '5'), col = levels(color_factor), pch = 19, title = "Class")
+```
+
+
+Based on BIC, 5 groups are suggested.   
+
+
+## Question 2
+### Part A
+```{r}
+
+cov_mat <- ability.cov$cov
+fa_results <-  factanal(covmat=cov_mat, factors=1, n.obs=112, rotation="none")
+print(fa_results)
+```
+The null hypothesis is number of factors are sufficient and because the p-value is 1.46e-12, which is low enough to reject the null hypothesis, it concludes that 1 factor is not sufficient to describe the data. 
+
+### Part B
+```{r}
+
+corr_mat <- cov2cor(cov_mat)
+fa_results <-  factanal(covmat=corr_mat, factors=1, n.obs=112, rotation="none")
+print(fa_results)
+
+```
+
+The only difference between using the covariance matrix and correlation matrix is the factor loading's are different, but the p-value, uniqueness, and cumulative proportion of variance explained is the same.
+
+### Part C
+```{r}
+
+fa_results <-  factanal(covmat=cov_mat, factors=2, n.obs=112, rotation="none")
+print(fa_results)
+
+```
+
+The p-value for the 2 factor results is 0.191 which is large enough to NOT reject the null hypothesis, indicating 2 factors is sufficient to describe the data.    
+    
+Looking at the factor 1 loadings, all are positive, indicating they are correlated and that if an individual does well on 1, they are likely to do well on the others. Factor 1 is mostly correlated with reading and vocab which suggests the latent factor 1 could be literacy strength. 
+
+Factor 2 is mostly correlated with the blocks and somewhat picture tests, which could suggest the 2nd latent factor has something to do with creativity. 
+
+### Part D
+```{r}
+
+fa_results <-  factanal(covmat=cov_mat, factors=2, n.obs=112, rotation="varimax")
+print(fa_results)
+
+```
+
+The uniqueness, p-value, and cumulative variance for the last factor have not changed.   
+
+Factor 1 is mostly correlated with reading and a close second is vocab, which again suggests some latent factor associated with literacy strength.   
+    
+Factor 2 is mainly correlated with the block design test, which suggests some link to the creativity or imaginative ability of an individual.    
+     
+Because the varimax rotation forces each variable to load heavily on 1 factor, it helps push variables towards a smaller subset of latent factors vs. apply no rotations - so we can more clearly see which variables correspond more closely to which latent factors. 
+
+### Part E
+```{r}
+
+fa_results <-  factanal(covmat=cov_mat, factors=2, n.obs=112, rotation="promax")
+print(fa_results)
+
+```
+
+A factor correlation matrix has been added to the output because we have applied a non-orthogonal rotation which allows for correlation among the factors unlike previously where this was not allowed. As such, adding this to the output is helpful to address the correlation between factors.    
+     
+Factor 1, similar to the previous case it is heavily loaded on reading and vocab which again points to some sort of literary proficiency.    
+   
+Factor 2, again is highly correlated with the block design test which suggests some sort of latent factor that measures an individuals creative ability.     
+     
+In addition, there is some correlation between the factors which suggests someone with high literary abilities is likely to also have high creativity.    
+     
+The loadings are about the same to interpret as the varimax rotation but are better when compared to no rotations because each variable is heavily loaded on a factor. Moreover, the additional correlation matrix between the factors is helpful because it shows the factors are not independent, which was not known with the varimax rotation.    
+     
+     
+## Question 3
+### Part A
+#### Loading images
+```{r}
+
+read_mnist_labels <- function(filename) {
+  fileConn <- file(filename, 'rb')
+  
+  magicNumber <- readBin(fileConn, what = 'integer', n = 1, size = 4, endian = "big")
+  numberOfItems <- readBin(fileConn, what = 'integer', n = 1, size = 4, endian = "big")
+  
+  labels <- readBin(fileConn, what = 'integer', n = numberOfItems, size = 1)
+  
+  close(fileConn)
+  
+  return(labels)
+}
+
+read_mnist_images <- function(filename) {
+  fileConn <- file(filename, 'rb')
+  
+  magicNumber <- readBin(fileConn, what = 'integer', n = 1, size = 4, endian = "big")
+  numberOfImages <- readBin(fileConn, what = 'integer', n = 1, size = 4, endian = "big")
+  numberOfRows <- readBin(fileConn, what = 'integer', n = 1, size = 4, endian = "big")
+  numberOfColumns <- readBin(fileConn, what = 'integer', n = 1, size = 4, endian = "big")
+  
+  image_data <- readBin(fileConn, what = 'integer', n = numberOfImages * numberOfRows * numberOfColumns, size = 1)
+  
+  image_data <- array(image_data, dim = c(numberOfRows, numberOfColumns, numberOfImages))
+  
+  close(fileConn)
+  
+  return(image_data)
+}
+
+flip_image_horizontally <- function(img) {
+  apply(img, 1, rev)
+}
+
+labels <- read_mnist_labels("fashion_data/t10k-labels-idx1-ubyte")
+images <- read_mnist_images("fashion_data/t10k-images-idx3-ubyte")
+
+flipped_images <- lapply(1:dim(images)[3], function(i) flip_image_horizontally(images[,,i]))
+
+flipped_images_array <- array(unlist(flipped_images), dim = c(dim(images)[1], dim(images)[2], dim(images)[3]))
+
+images <- flipped_images_array
+
+```
+
+```{r}
+load_mnist <- function() {
+  load_image_file <- function(filename) {
+    ret = list()
+    f = file(filename,'rb')
+    readBin(f,'integer',n=1,size=4,endian='big')
+    ret$n = readBin(f,'integer',n=1,size=4,endian='big')
+    nrow = readBin(f,'integer',n=1,size=4,endian='big')
+    ncol = readBin(f,'integer',n=1,size=4,endian='big')
+    x = readBin(f,'integer',n=ret$n*nrow*ncol,size=1,signed=F)
+    ret$x = matrix(x, ncol=nrow*ncol, byrow=T)
+    close(f)
+    ret
+  }
+  load_label_file <- function(filename) {
+    f = file(filename,'rb')
+    readBin(f,'integer',n=1,size=4,endian='big')
+    n = readBin(f,'integer',n=1,size=4,endian='big')
+    y = readBin(f,'integer',n=n,size=1,signed=F)
+    close(f)
+    y
+  }
+  test <<- load_image_file('fashion_data/t10k-images-idx3-ubyte')
+  test$y <<- load_label_file('fashion_data/t10k-labels-idx1-ubyte')  
+}
+
+load_mnist()
+images <- as.matrix(test$x)
+labels <- test$y
+
+images_reshaped <- array(0, dim = c(nrow(images), 28, 28))
+for (i in 1:nrow(images)) {
+  images_reshaped[i,,] <- matrix(images[i,], nrow = 28, byrow = TRUE)
+}
+
+# Fix orientation of images
+fixed_images <- array(0, dim = dim(images_reshaped))
+for (i in 1:nrow(images_reshaped)) {
+  fixed_images[i,,] <- t(apply(images_reshaped[i,,], 2, rev))
+}
+images_permuted <- aperm(fixed_images, c(2, 3, 1))
+
+images <- images_permuted
+
+```
+
+
+#### Plotting first 25 images
+```{r}
+par(mfrow=c(5,5), omi=c(0,0,0,0), mai=c(0.1,0.1,0.1,0.1))
+for (i in 1:25){
+  image(images[,,i], col=gray(12:1/12))
+}
+
+```
+
+### Part B
+```{r, eval=FALSE}
+images_1d <- apply(images, 3, as.vector)
+images_1d <- t(images_1d)
+image_pca <- prcomp(images_1d)
+save(image_pca, file = "image_pca.Rdata")
+```
+
+Maximum number of components that are permittable is 784 components because images are 28x28 = 784.   
+
+
+### Part C
+```{r, warning=FALSE}
+images_1d <- apply(images, 3, as.vector)
+images_1d <- t(images_1d)
+load("image_pca.Rdata")
+
+par(mfrow=c(5,5), omi=c(0,0,0,0), mai=c(0.1,0.1,0.1,0.1))
+for(i in 1:25){
+  image(matrix(image_pca$rotation[,i], 28, 28), col=gray(12:1/12))
+}
+
+
+```
+
+About 80% of the original variation in pixels is explained by the first 25 components.   
+
+
+### Part D
+```{r, warning=FALSE}
+par(mfrow=c(5,4), omi=c(0,0,0,0), mai=c(0.1,0.1,0.1,0.1))
+for (i in 1:10){
+  p_comp <- 25
+  reconst <- (image_pca$rotation[,1:p_comp] %*% t(image_pca$x[,1:p_comp]))
+  image(matrix(reconst[,i], 28, 28), col=gray(12:1/12), xaxt="n", yaxt="n")
+  image(images[,,i], col=gray(12:1/12))
+}
+
+```
+
+### Part E
+```{r, eval=FALSE}
+
+nmf <- function(x, q, eps=0.001, maxit=2000, w=NULL, h=NULL){
+  n <- nrow(x)
+  p <- ncol(x)
+  if(any(x<0)){x <- as.matrix(x)+abs(min(x))}
+  else{x <- as.matrix(x)}
+  if(is.null(w)){
+    w <- matrix(runif(n*q, min(x), max(x)), n, q)
+  }
+  if(is.null(h)){
+    h <- matrix(runif(p*q, min(x), max(x)), q, p)
+  }
+  ed <- sum((x-w%*%h)^2)
+  conv <- FALSE
+  ctr <- 1
+  while(!conv){
+    ctr <- ctr+1
+    h <- h * (t(w) %*% x) / (t(w) %*% w %*% h) 
+    w <- w * (x %*% t(h)) / (w %*% h %*% t(h))
+    wh <- w%*%h
+    ed[ctr] <- sum((x-wh)^2)
+    if((ed[ctr-1]-ed[ctr] < eps)|(ctr==maxit)){
+      conv <- TRUE
+    }
+  }
+  list(ed=ed, w=w, h=h, x=x)
+}
+
+set.seed(5213541)
+test <- nmf(images_1d, 25, maxit=600)
+save(test, file = "nmf_results.Rdata")
+```
+
+#### Continued
+```{r}
+load("nmf_results.Rdata")
+
+par(mfrow=c(5,5), omi=c(0,0,0,0), mai=c(0.1,0.1,0.1,0.1))
+for(i in 1:25){
+  image(matrix(test$h[i,], 28, 28), col=gray(12:1/12), xaxt="n", yaxt="n")
+}
+
+```
+         
+         
+Looking at the first 25 basis vector images, I can see some are very clear (mostly the shoes) and some are blurry. They all have some dark areas which they are regions of importance for that basis. The biggest difference being it doesn't look like a t-shirt or clothing article is imposed on the image unlike in PCA.         
+     
+In contrast, for the principal components, many of the images look very similar. The background in these images is mostly neutral ie. gray, likely due to the averaging. Most importantly, for many of the components, it looks like there are many images on top of each other making the overall image unclear.    
+ 
+Due to the additivity requirement from NMF, components can only be added, whereas in PCA they can be added and subtracted. As such, the interpretations gotten from the NMF bases are more interesting than that from the principal components.   
+
+### Part F
+```{r}
+
+nmfrec <- test$w %*% test$h
+
+par(mfrow=c(5,4), omi=c(0,0,0,0), mai=c(0.1,0.1,0.1,0.1))
+for (i in 1:10){
+  image(matrix(nmfrec[i,], 28, 28), col=gray(12:1/12), xaxt="n", yaxt="n")
+  image(images[,,i], col=gray(12:1/12))
+}
+
+```
+
+### Part G
+```{r}
+
+scores <- test$w 
+data <- data.frame(scores, as.factor(labels))
+names(data)[names(data) == "as.factor.labels."] <- "labels"
+
+tree_model <- tree(labels ~ ., data = data)
+plot(tree_model)
+text(tree_model)
+```
+
+### Part H
+```{r}
+
+set.seed(123)
+
+cv_out <- cv.tree(tree_model, FUN=prune.misclass)
+
+optsize <- cv_out$size[which.min(cv_out$dev)]
+print(optsize)
+
+pruned_tree <- prune.misclass(tree_model, best=optsize)
+plot(pruned_tree)
+text(pruned_tree)
+
+misclassification_rate_best_tree <- cv_out$dev[which.min(cv_out$dev)] / 10000
+print(misclassification_rate_best_tree)
+```
+
+
+Comparing the pruned tree to the original, they are both the same size, hence, 0 nodes are suggested to be removed for the best tree with lowest deviance.    
+    
+The missclassification rate for the best tree is about 39%.
+
+
+

@@ -1,0 +1,298 @@
+---
+title: "Data-573 Assignment 1"
+author: "Dhun Sheth"
+date: "2024-02-25"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(MASS)
+library(mclust)
+library(ggplot2)
+```
+
+## Question 1
+
+### Part A
+```{r}
+
+data <- read.csv('car93.csv')
+
+pca_cars <- prcomp(data[,-1:-3], scale.=TRUE)
+print(summary(pca_cars))
+biplot(pca_cars)
+```
+
+### Part B and C
+```{r}
+print(pca_cars$rotation[,1:2])
+```     
+**PC1**    
+From the first principal component, I can see majority of the coefficients are positive except for 4 which are negative (MPG.city, MPG.highway, RPM, Rev.per.mile). All 4 of the negative coefficients are some sort of rate, like the miles per gallon in the city of highway, and revolutions per minute or per mile. The largest coefficient in magnitude is weight while the smallest is RPM.        
+     
+**PC2**
+In the second principal component, there is a larger variance in the coefficients than the first principal component with the largest coefficient in magnitude being RPM and the smallest being EngineSize.There are more coefficients closer to 0, indicating a lot of the variation in those predictors was captured in the first component. In addition, the negative coefficients in the 2nd component have something to do with distance or size, but the grouping is not as clear as in the first component, also indicating the variation being captured is lower than in the first component. 
+
+### Part D
+```{r}
+print(summary(pca_cars))
+plot(pca_cars, type="lines")
+```
+      
+**I. Kaiser Criterion:** For the Kaiser criterion, for scaled PCA, keep all principal components where the variance/standard deviation is greater than or equal to 1, and so the first 2 principal components should be kept.   
+**II. Cumulative Proportion:** To keep 90% of the variation in the data, the first 4 principal components capture about 88% of the variation, so in order to capture 90%, the first 5 principal components must be kept.    
+
+**III. Scree Plot:** Based on the scree plot, the graph seems to plateau around the 3rd component where 3 is not much different than 4 and 4 is not much different than 5. Thus, based on the scree plot, the first 2 principal components should be kept.    
+
+
+### Part E     
+#### I.    
+
+```{r}
+predictors_pca <- as.data.frame(pca_cars$x[, 1:2])
+response <- ifelse(data$Type == "Small", "Small", "Not Small")
+
+lda_cars <- lda(response ~ ., data = data.frame(response = response, predictors_pca), CV = TRUE)
+
+y_1 <- ifelse(response == 'Not Small', 1, 0)
+y_2 <- ifelse(response == 'Small', 1, 0)
+
+y <- cbind(y_1, y_2)
+
+log_product <- y * log(lda_cars$posterior)
+
+log_loss <- -mean(log_product[log_product != 0])
+print(log_loss)
+```
+      
+       
+#### II.
+```{r}
+
+predictors_pca <- as.data.frame(pca_cars$x[, 1:2])
+response <- data$Type
+
+lda_cars <- lda(response ~ ., data = data.frame(response = response, predictors_pca), CV = TRUE)
+
+y_1 <- ifelse(response == 'Compact', 1, 0)
+y_2 <- ifelse(response == 'Large', 1, 0)
+y_3 <- ifelse(response == 'Midsize', 1, 0)
+y_4 <- ifelse(response == 'Small', 1, 0)
+y_5 <- ifelse(response == 'Sporty', 1, 0)
+
+y <- cbind(y_1, y_2, y_3, y_4, y_5)
+
+log_product <- y * log(lda_cars$posterior)
+
+log_loss <- -mean(log_product[log_product != 0])
+
+print(log_loss)
+```
+      
+      
+### Part F
+Based on the above, we see the log-loss where we have 2 categories of vehicle type ("Small" and "Not Small") has a smaller log-loss than when we included all vehicle types. It is reasonable to assume that in order to classify a prediction from more categories, a better model or more understanding of the groups/data would be needed. However, we used the same model and same number of principal components (ie. the amount of variation being used is the same) and the log-loss in the 2nd iteration performed worse because the log-loss metric heavily penalizes any high-confident misclassifications.    
+
+This matches our discussion in which it was concluded that there is no guarantee that higher variance components will lead to more predictive power towards y. We also don't know which principal components will explain the variation in y and so even though we only used the first 2 principal components, we may be able to get a lower log-loss had we used other principal components with lower variance being captured.    
+
+## Question 2    
+
+### Part A     
+```{r}
+data <- banknote
+print(summary(data[,-1:-2]))
+print(cor(data[,-1:-2]))
+```     
+    
+Based on the summary of the data, it must be scaled because the magnitude of Bottom and Top is much lower than the other predictors. 
+
+Scaled euclidean distance seems appropriate due to its simplicity. Scaled Manhattan distance seemed appealing due to the values being the perimeters of the banknote, ie left, right, top, and bottom edges, however, I wasn't sure if travelling along the axes requirement applied to the bank note data. Mahalanobis was considered due to the correlation between the left and right predictors, but was dropped because the correlation amongst the other predictors was not as high, particularly bottom and top.    
+     
+### Part B
+```{r}
+scaled_data <- scale(data[,-1:-2])
+dist_matrix <- dist(scaled_data, method = "euclidean")
+hc_single <- hclust(dist_matrix, method = "single")
+hc_complete <- hclust(dist_matrix, method = "complete")
+hc_avg <- hclust(dist_matrix, method = "average")
+
+plot(hc_single, hang = -1, labels = rownames(data))
+plot(hc_complete, hang = -1, labels = rownames(data))
+plot(hc_avg, hang = -1, labels = rownames(data))
+
+```
+
+### Part C
+The dendrogram from the "complete" linkage method looks the best and the dendrogram from the "average" linkage method looks somewhat acceptable. The "single" linkage method looks strange, seems like there is a chaining pattern occurring. 
+
+The "complete" dendrogram indicates there are 2 groups and the "average" dendrograms indicates there are likely 3 groups, but I would ultimately go with the "complete" linkage method because the dendrogram looked the best and conclude there are likely 2 groups in the data.
+
+### Part D
+```{r}
+clusters <- cutree(hc_complete, k=2)
+# data$cluster <- as.factor(clusters)
+
+conf_matrix <- table(data$Status, clusters)
+print(conf_matrix)
+misclassification_rate <- 1 - sum(diag(conf_matrix)) / sum(conf_matrix)
+print(misclassification_rate)
+```
+
+### Part E
+```{r}
+set.seed(632)
+
+k_means <- kmeans(scaled_data, 2, nstart=25)
+conf_matrix <- table(data$Status, k_means$cluster)
+print(conf_matrix)
+
+misclassification_rate <- 1 - sum(diag(conf_matrix)) / sum(conf_matrix)
+print(misclassification_rate)
+
+```
+
+### Part F
+```{r}
+
+set.seed(632)
+
+k_means <- kmeans(data[,-1:-2], 2, nstart=25)
+conf_matrix <- table(data$Status, k_means$cluster)
+print(conf_matrix)
+
+n <- nrow(conf_matrix)
+opposite_diag_values <- conf_matrix[cbind(n:1, 1:n)]
+
+misclassification_rate <- 1 - sum(opposite_diag_values) / sum(conf_matrix)
+print(misclassification_rate)
+
+```    
+     
+A potential reason as to why the unscaled data performs better than the scaled version is because distance between data points for particular predictors may be important for clustering. As an example, the difference between the left/right sides of the banknote may be more important than the difference between top/bottom which are originally very far in terms of scale, but become standardized during the scaling process and that difference becomes less prominent.   
+
+### Part G
+The strong performance of unsupervised techniques on the banknote data set indicates there is an underlying structure/pattern within the data which allowed the unsupervised technique to be so successful. The strong performance also indicates there are important features which can be used for anomaly detection which can be used to determine if certain banknotes deviate from the norm. In general, the strong performance signifies some relationship which can be further explored/analyzed.     
+
+
+## Question 3 
+
+### Part A
+```{r}
+load("lots.Rdata")
+
+data <- data.frame(datmat)
+data$clusts <- as.factor(clusts)
+
+plot <- ggplot(data, aes(x=X1, y=X2, color=clusts)) +
+  geom_point()
+
+print(plot)
+```
+
+### Part B
+```{r}
+set.seed(1026)
+
+scaled_data <- scale(data[,-3])
+
+k_means <- kmeans(scaled_data, 20)
+adj_rand_index <- adjustedRandIndex(as.numeric(data$clusts), as.numeric(k_means$cluster))
+print(adj_rand_index)
+
+```  
+
+### Part C
+
+```{r}
+set.seed(6201)
+
+scaled_data <- scale(data[,-3])
+
+k_means <- kmeans(scaled_data, 20)
+adj_rand_index <- adjustedRandIndex(as.numeric(data$clusts), as.numeric(k_means$cluster))
+print(adj_rand_index)
+
+```
+
+### Part D
+```{r}
+set.seed(1026)
+
+scaled_data <- scale(data[,-3])
+
+k_means <- kmeans(scaled_data, 20, nstart=1000)
+adj_rand_index <- adjustedRandIndex(as.numeric(data$clusts), as.numeric(k_means$cluster))
+print(adj_rand_index)
+
+```
+
+### Part E
+
+```{r}
+set.seed(6201)
+
+scaled_data <- scale(data[,-3])
+
+k_means <- kmeans(scaled_data, 20, nstart=1000)
+adj_rand_index <- adjustedRandIndex(as.numeric(data$clusts), as.numeric(k_means$cluster))
+print(adj_rand_index)
+
+```
+
+### Part F
+Based on the results from B and C, we get adjusted Rand Index's that are not very close which indicates the random start is playing an important role in the clusters being formed by the k-means algorithm - more importantly it also raises the question if the k we selected of 20 is actually correct because the solutions seem to differ from the original values. 
+
+Moving to the results from part D and E, we see the adjusted Rand Index for both are very close, indicating the initial start is not as important and that we eventually do reach similar groups such that the adjusted Rand Index is almost the same. This also reinforces our selection of 20 groups being valid and concludes the clusters formed via k-means are very similar to the original groups. 
+
+## Question 4
+```{r}
+
+a <- load('bsim.Rdata')
+
+data <- data.frame(asim)
+
+# initial data exploration
+plot(data)
+print(cor(data[,-1]))
+print(cov(data[,-1]))
+
+# initial linear model
+initial_linear <- lm(y ~. , data=data)
+print(summary(initial_linear))
+
+# PCA
+pca_data <- prcomp(data[,-1], scale.=TRUE)
+print(biplot(pca_data))
+print(summary(pca_data))
+
+pca_predictors <- as.data.frame(pca_data$x[, 1:2])
+
+pca_predictors <- data.frame(data[,1], pca_predictors)
+colnames(pca_predictors)[colnames(pca_predictors) == 'data...1.'] <- 'y'
+
+linear <- lm(y ~., data=pca_predictors)
+summary(linear)
+
+
+# Clustering
+scaled_data <- data.frame(scale(data[,-1], scale=TRUE))
+
+# Decide to go with 2 groups based on biplot from PCA
+k_means <- kmeans(scaled_data, 2, nstart=1000)
+
+temp_data <- data
+temp_data$cluster <- k_means$cluster
+linear_clusters <- lm(y ~ cluster*(V2+V3+V4+V5+V6+V7+V8+V9+V10) , data=temp_data)
+print(summary(linear_clusters))
+
+```
+
+Based on the initial linear model, it has an R-squared value of about 0.74 which is well below 0.99 target. Performaning PCA and PCReg, we see the PCReg performs much worse at an R-squared value of 0.22, however, from the biplot, we can clearly see 2 groups. 
+
+After performing a K-means clustering with 2 groups, I re-try the linear model, but this time, I multiply the predictors by the cluster value resulting in a much better linear fit and achieveing the 0.99 R-squared target. 
+
+     
+## Question 5
+
+![Question 5 solution](data_573_assign_1_question_1.jpg)
