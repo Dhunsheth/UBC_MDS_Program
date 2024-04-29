@@ -1,0 +1,56 @@
+<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+The objective of the assignment is to model a support vector machine for separable data as explained at <a href="https://www.mathworks.com/help/stats/support-vector-machines-for-binary-classification.html">https://www.mathworks.com/help/stats/support-vector-machines-for-binary-classification.html</a>. All the mathematics use the notation from that page while the variable names for data generation may be different; do the appropriate conversion.
+
+<h1>Generating the data</h1>
+Use the following MATLAB code to generate random data. (Translate the code to your platform (R, Python, etc.); Copilot/chatGPT are (usually) good at translating code so feel free to use them (and give proper credit!).)
+<pre><code>
+%Generate problem data in 2D
+rng(1); %fix seed for reproducibility
+n=1000;% number of points; use small n values for debugging
+nc=2;%number of categories 1..nc
+X=rand([n 2]);%random 2D numbers X=[x; y] so X(3,:)=[0.4; 0.5]
+
+%artificial categories hyperplane: beta' * x + b =0
+beta=[-0.75; 1];b=0.13;
+h = @(x, beta, b) (-beta(1)*x-b)/beta(2);
+C=sign(X(:,2)-h(X(:,1),beta,b));%categories: -1, 1
+c1=find(C-1);c2=find(C+1);
+
+clf();hold on;
+plot(X(c1,1),X(c1,2),'b.','Markersize',15);
+plot(X(c2,1),X(c2,2),'r.','Markersize',15);
+</code></pre>
+
+<h1>Primal problem</h1>
+The primal problem consists of
+\[
+\min_{\beta, b} \{ \beta^T \beta : y_j(x_j^T\beta+b)\geq 1 \}
+\]
+in other words, the input parameters are \(x_j\), \(y_j\) while the variables are \(\beta\), \(b\). The hyperplane has equation \(\beta x + b=0\) and can be plotted using 
+<pre><code>
+x=linspace(0,1);y=h(x, beta, b);plot(x,y);
+</code></pre>
+
+Note: You may need to reformulate the problem in matrix form depending on your solver, e.g., MATLAB <a href="https://www.mathworks.com/help/optim/ug/quadprog.html">quadprog</a> requires a matrix as input while <a href="https://yalmip.github.io/">YALMIP</a> handles equations directly. (You could build the matrix without using a loop by only using matrix operations.)
+
+<p>Plot the resulting hyperplane and verify that it separates the red points from the blue points.
+
+<h1>Dual problem</h1>
+The dual problem is
+\[
+\max_{\alpha_j} \{\sum_j \alpha_j -\frac{1}{2}\sum_j\sum_k\alpha_j \alpha_k y_j y_k x_j^T x_k^T : \alpha_j \geq 0, \sum_j \alpha_j y_j = 0 \}
+\]
+where the variables are now \(\alpha_j\). (Note that the <a href="https://www.mathworks.com/help/stats/support-vector-machines-for-binary-classification.html">webpage</a> forgot the constraint \(\sum_j \alpha_j y_j = 0\).)
+
+Formulate the problem and solve it. Verify that you find the same hyperplane as for the primal problem.
+
+<h1>Comparison and submission</h1>
+Using timing functions (tic and toc in MATLAB), time the solution to both problems. Report your findings as 
+<ol>
+<li>a picture showing the separation hyperplanes, 
+<li> a picture showing the timings (size of the problem n on the x-axis vs. time to solve it on the y-axis) for solving each problem for n=10:100:1100, and
+<li> your code with brief comments on what problem is easier to solve.
+</ol>
+Submit all 3 files.

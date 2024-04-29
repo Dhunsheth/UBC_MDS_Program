@@ -1,0 +1,29 @@
+<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({tex2jax: {inlineMath: [['$','$'], ['\\(','\\)']]}});
+</script>
+<script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+<p>The objective of this lab is to familiarize yourself with solvers, classification of optimization problems, and what algorithm to choose. You can and are expected to use online resources. Most of your time is likely to be spent learning about your selected optimization platform.
+
+<p>You are free to use any optimization platform you prefer. Suggested ones are: R, Python, MATLAB/YALMIP, Julia. Ask for TA for more information on any of those; and definitely ask permission from your TA if you wish to use another platform (so your work can be graded).
+
+<ol type="I">
+	<li>Using <a href="https://www.mathworks.com/help/optim/ug/problems-handled-by-optimization-toolbox-functions.html">Choosing a solver</a> indicate what function should be called and what algorithm is expected to perform best for each of the following optimization problems.
+		<ol>
+		<li>Himmelblau’s function: 
+		\[\inf_{x, y} (x^2 + y - 11)^2 + (x + y^2 - 7)^2\]
+		<li>Ackely function
+		\[\inf_{x,y} -20 \cdot \exp\left(-0.2 \cdot \sqrt{\frac{x^2 + y^2}{2}}\right) - \exp\left(\frac{\cos(2\pi x) + \cos(2\pi y)}{2}\right) + 20 + e \]
+		<li>Rastringin Function
+		\[\inf_{x,y} 20 + x^2 + y^2 - 10\left(\cos(2\pi x) + \cos(2\pi y)\right)\]
+        <li>Easom Function:
+        \[\inf_{x,y} -\cos(x) \cdot \cos(y) \cdot \exp\left(-\left((x - \pi)^2 + (y - \pi)^2\right)\right) \]
+        <li>Michalewicz Function:
+        \[\inf_{x,y}  -\sin(x) \cdot \left(\sin\left(\frac{x^2}{\pi}\right)^{20}\right) - \sin(y) \cdot \left(\sin\left(\frac{2 y^2}{\pi}\right)^{20}\right)  \]
+		</ol>
+    You may look at <a href="https://www.mathworks.com/help/optim/ug/problems-handled-by-optimization-toolbox-functions.html">Problems Handled by Optimization Toolbox Functions</a> for examples of function to call.
+    
+	<li>Create a graph plot with contours, and a contour plot for the optimization problem $\inf_{x,y} \{x y : 5 x^2 + 20 y^2\leq 3\}$ (examples of such plots can be found at <a href="https://www.mathworks.com/help/optim/ug/optimization-toolbox-tutorial.html">Tutorial for the Optimization Toolbox</a>. Then use your favorite solver to compute a minimum.
+</ol>

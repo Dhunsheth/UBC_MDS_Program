@@ -1,0 +1,30 @@
+<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({tex2jax: {inlineMath: [['$','$'], ['\\(','\\)']]}});
+</script>
+<script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+$\newcommand{\R}{\mathbb{R}}  $
+<p>You are free to use any optimization platform you prefer. Suggested ones are: R, Python, MATLAB/YALMIP, Julia. Ask for TA for more information on any of those; and definitely ask permission from your TA if you wish to use another platform (so your work can be graded).
+
+<ol type="I">
+	<li>Solve using software the following LP $\max_{x_1,x_2} 2x_1+3 x_2$ subject to $2x_1+x_2\leq 10$, $x_1+x_2\leq 6$, $-x_1+x_2\leq 4$, and $x_2\geq 0$.
+    <li> We plan a meal at Milky King. The choices are: (name, price, calories , sodium [mg] , sugar [g])
+        <ul>
+            <li>Snowblast Mini $2.89, 360, 180, 43;
+            <li>Snowblast Large $4.69, 1020, 540, 118;
+            <li>French Fries regular $2.19, 380, 790, 0;
+            <li>French Fries large $2.69, 490, 1030, 0;
+            <li>Side salad $2.19, 25, 15, 3;
+            <li>Cheese burger $2.19, 380, 930, 8.
+        </ul>
+        Design a meal subject to the constraints:
+        <ul>
+            <li>calories between 500 and 800,
+            <li>sodium less than 1200,
+            <li>sugar less than 40 grams.
+        </ul>
+        Make it as cheap as possible. Do not impose integer constraints
+    <li>Solve the same problem but now imppose integer constraints.
+    <li>We saw in class the 4 types of possibilities for LP problems. Implement the examples for Possibilities 2,3,4 to see how your solver deals with it. Note: You might encounter weird outcomes. This question will make you aware of such outcomes.
+</ol>

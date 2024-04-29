@@ -1,0 +1,33 @@
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<script type="text/x-mathjax-config">MathJax.Hub.Config({tex2jax: {inlineMath: [['$','$'], ['\\(','\\)']]}});</script>
+<script type="text/javascript">window.MathJax = {tex: {inlineMath: [['$', '$'], ['\\(', '\\)']]}};</script>
+<script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+$\newcommand{\R}{\mathbb{R}}  $
+<p>You are free to use any optimization platform you prefer. Suggested ones are: R, Python, MATLAB/YALMIP, Julia. Ask for TA for more information on any of those; and definitely ask permission from your TA if you wish to use another platform (so your work can be graded).
+
+<ol type="I">
+	<li>Consider the function $f:\R\to\R$ defined by $f(x)= \exp(x)+\frac{1}{12} x^{12} + \frac{1}{6}x^6+x$.
+    <ol>
+        <li>Find the derivative $g(x)=f'(x)$. Can you find stationary points analytically?
+        <li>Determine the second derivative $H(x)=f''(x)$. Decide whether or not $f$ is convex.
+        <li>The function $f$ as a unique minimizer, say $z$. Use an optimization solver to find the minimizer $z$ and the optimal value $f(z)$.
+        <li>Run 15 iterations of Newton’s method for finding a minimizer of $f(x)$. Use $x_0=1$ as your starting point.
+        <li>Run 15 iterations of gradient descent with backtracking. Use $x_0=1$ as your starting point.
+    </ol>
+    <li>Consider the function $f:\R^2\to\R$ defined by $f(x)=\exp(x_1)+3 x_1^2+5x_2^2-4 x_1 x_2$.
+   <ol>
+        <li>Find the gradient $g(x)=\nabla f(x)$.
+        <li>Determine the Hessian $H(x)=\nabla^2 f(x)$. Decide whether or not $f$ is convex. What can you say about stationary points?
+        <li>Use an optimization solver to find the minimizer and optimal value.
+        <li>Run Newton’s method until the current iterate has a function value within $10^{-6}$ of the optimal value. Report how many steps you needed. Start at $(s,s)$, where $s=$last two digits of your student number.
+        <li>Run gradient descent with backtracking until the current iterate has a function value within $10^{-6}$ of the optimal value. Report how many steps you needed. Start at $(s,s)$, where $s=$last two digits of your student number.
+    </ol>    
+</ol>
+
+<p>Submit
+<ul>
+<li>Your answer in a notebook-like format for the platform you use. Add all comments you deem necessary.
+</ul>

@@ -1,0 +1,21 @@
+<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+Consider a set of data points \((x^i,y_i)\) with \(x^i\in \mathbb{R}^p\), \(y_i\in \mathbb{R}\) and \(i=1,\dots,n\). 
+	We wish to compute a linear regression model using LASSO by solving the optimization problem
+	\[ \min_{\beta} \sum_{i=1}^n \left(y_i -\beta_0 -\sum_{j=1}^p \beta_j x^i_j\right)^2 +\lambda \sum_{j=1}^p |\beta_j|\]
+	where \(\lambda\) is a given input parameter.
+	<ol>
+	<li> Classify the above optimization problem.
+	<li> Write 3 simple unit tests; at least one of them has to have \(x^i\in\mathbb{R}^2\).
+	<li> Generate randomly a set of data points \((x^i,y_i)\), and illustrate your solution.
+    </ol>
+Note that your solver may not be able to handle the absolute value. In that case, read <a href="https://download.aimms.com/aimms/download/data/4.3/2.3/AIMMS3_OM.pdf">Optimization Modeling</a>, p. 65-66, Chapter 6; and reformulate the LASSO problem so that it can be solved by your solver. Classify your reformulated problem; How many more constraints do you have in the reformulated problem?
+
+<p>More information on LASSO and Support Vector Classifier can be found in <a href="http://link.springer.com/book/10.1007%2F978-1-4614-7138-7">An Introduction to Statistical Learning</a> by G. James, D. Witten, T. Hastie, and R. Tibshirani, Springer 2013,  on page 291 (LASSO).
+
+<p>Submit
+<ul>
+<li>A written answer (typed or scanned), and
+<li>your code.
+</ul>

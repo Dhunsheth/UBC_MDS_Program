@@ -1,0 +1,239 @@
+---
+title: "Assignment 01 - Introduction to the `spatstat` package"
+author: "Dhun Sheth"
+date: "`r format(Sys.time(), '%d %B, %Y %H:%M:%OS')`"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+# DO NOT ALTER CODE IN THIS CHUNK
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+* * *
+
+Complete the following exercises and submit to Canvas before the due date In addition to the points detailed below, 5 points are assigned to the quality of the annotation and to the 'cleanliness' of the code and resulting pdf document.
+
+## Exercise 1 -- 5 points
+
+* Import the BC park locations dataset.  -- 0.5 point(s)
+* Identify the class of each element within the list.  -- 0.5 point(s)
+* Visualise each element within the list using methods appropriate to each object class.  -- 1 point(s)
+* Convert the data to a `ppp` object (be sure to include information on regions as marks).  -- 2 point(s)
+* Run `plot()` on the resulting `ppp` object. -- 0.5 point(s)
+* Briefly describe the dataset. -- 0.5 point(s)
+
+Note: You will need to load the `sp` package and make use of the `as.owin()` function.
+
+```{r, message=FALSE, warning=FALSE}   
+library(spatstat) # loading spatstat library
+```
+
+### Loading Data      
+
+```{r, message=FALSE, warning=FALSE}
+load('BC_Parks.Rda')
+library(viridis)
+library(colorspace)
+library(sf)
+library(spatstat.geom)
+```     
+
+### Identify class of each object within "DATA"     
+
+```{r}
+class_type <- sapply(DATA, class)
+print(class_type)
+```
+
+### Visualizing each element in "DATA"     
+
+```{r}
+# Parks
+plot(Y ~ X,
+     pch = 16,
+     col = "#046C9A",
+     data = DATA$Parks)
+
+# Window
+parks_win <- as.owin(DATA$Window)
+plot(parks_win, main = "Parks Observation Window")
+
+# Converting data to ppp object
+parks_ppp <- ppp(x = DATA$Parks$X, # X coordinates
+                    y = DATA$Parks$Y, # Y coordinates
+                    window = parks_win) # Observation window
+
+#Visualise the dataset
+marks(parks_ppp) <- data.frame(Group = DATA$Parks$Region, 
+                               Park_Name = DATA$Parks$Park)
+
+plot(parks_ppp,
+     which.marks = 'Group',
+     main = "BC Parks point data")
+
+# Elevation
+plot(DATA$Elevation)
+
+# Describing the data
+# summary(parks_ppp)
+summary(as.data.frame(parks_ppp))
+
+# Number of points
+npoints(parks_ppp)
+
+#Coordinates and mark information
+head(as.data.frame(parks_ppp))
+```
+
+## Exercise 2 -- 2 points     
+
+* Refine the figure of the point pattern. You must modify at least 5 graphical parameters. The marks need to be visually distinct.   -- 2 point(s)
+
+```{r}
+# Adding discrete color pallet for each region
+col_pal <- magma(length(unique(DATA$Parks$Region)))
+
+plot(parks_ppp,
+     which.marks = "Group",
+     col = "grey90",
+     cols = col_pal,
+     par(bg="grey75", cex.main = 3),
+     main = "BC Parks point data",
+     legend=T)
+
+```
+
+
+## Exercise 3 -- 5 points     
+
+* Create a perspective plot of the elevation image. You must modify at least 10 arguments of the `persp` function and can not use the `viridis()` colour pallet shown in the lab example.  -- 4 point(s) 
+* Overlay the park locations.  -- 1 point(s) 
+
+```{r}
+pal <- sequential_hcl(100, "Blues 3") # Adding new color pallet for mapping
+
+fig <- persp(DATA$Elevation, # source data
+             theta = 5, 
+             phi = 25, # rotation
+             expand = 9, # z-axis expansion
+             border = NA, #remove grid borders
+             apron = TRUE, #apron around edge
+             shade = 0.4, # shading
+             box = FALSE, # axes on/off
+             main = "BC Parks", # title
+             visible = TRUE, #Supporting calculations
+             colmap = pal) # colour pallet
+
+# Adding BC park locations to plot
+perspPoints(DATA$Parks, Z = DATA$Elevation, M = fig, pch = 16, cex = 0.5) 
+
+```
+
+
+## Exercise 4 -- 2 points     
+
+* Split the elevation image into 5 elevation 'classes'.  -- 0.5 point(s)
+* Plot the elevation class image and overlay the park locations.  -- 0.5 point(s)
+* Identify which of these elevation classes most parks fall in.  -- 1 point(s)
+
+Note: The `table()` function is useful here.
+
+```{r}
+
+# Plotting graph
+elev_class <- cut(DATA$Elevation,
+         5,
+         labels = c("low","low-med", "medium", "med-high","high"))
+
+plot(cut(DATA$Elevation,
+         5,
+         labels = c("low","low-med", "medium", "med-high","high")),
+     main = "Elevation classes")
+
+points(parks_ppp, pch = 20) # Adding park locations to graph
+
+# Identifying which class most parks fall under
+table(elev_class[parks_ppp])
+
+```
+
+
+## Exercise 5 -- 3 points     
+
+* Compute the distance from each park to its nearest neighbour.  -- 0.5 point(s)
+* Mark the parks with this information.  -- 0.5 point(s)
+* Plot the point pattern with information from these new marks.  -- 1 point(s)
+* Identify the most isolated park in BC.  -- 1 point(s)
+
+
+Note: The park names are stored in the `DATA` object.
+
+```{r}
+
+m <- marks(parks_ppp) # Storing marks
+m$Dist <- nndist(parks_ppp) # Adding nearest neighbor distance
+marks(parks_ppp) <- m
+
+plot(parks_ppp, which.marks = "Dist")
+print(m[which.max(m$Dist),]) # Identifying the most isolated park in BC
+
+```     
+Most isolated park in BC is `r m[which.max(m$Dist),]$Park_Name`.
+
+## Exercise 6  -- 3 points
+
+* Calculate the median elevation within British Columbia and at park locations.  -- 1 point(s) 
+* Generate a kernel density estimate (KDE) of the distribution of elevation values within the province.  -- 0.5 point(s)
+* Generate a KDE of the distribution of elevation values at park locations.  -- 0.5 point(s)
+* Create a figure that overlays the two distributions.   -- 0.5 point(s)
+* Include a legend. -- 0.5 point(s)
+* Do think that the spatial distribution of parks is random with respect to elevation?  -- 0.5 point(s)
+* Identify both the highest and lowest elevation parks in BC.  -- 0.5 point(s)
+
+Note: You may need to use the `density()`, `lines()`, and `legend()` functions.
+
+```{r}
+
+# Calculating Median elevation in BC and of BC parks
+BC_median_elevation <- median(DATA$Elevation)
+print(BC_median_elevation)
+BC_park_median_elevation <- median(DATA$Elevation[DATA$Parks])
+print(BC_park_median_elevation)
+
+# Generating KDE for elevation in BC and for elevation of BC parks
+BC_elevation_density <- density(DATA$Elevation[])
+BC_parks_elevation_density <- density(DATA$Elevation[DATA$Parks])
+
+# Plotting density of elevation in BC
+plot(BC_elevation_density, main = "Density of BC Elevation and BC Parks", 
+     xlab = "Elevation", ylab = "Density", col = "red", lwd = 2, 
+     ylim = range(c(BC_elevation_density$y, BC_parks_elevation_density$y)))
+
+# Adding density of BC park elevations
+lines(BC_parks_elevation_density, col = "blue", lwd = 2)
+
+# Including legend
+legend("topright", legend = c("BC Elevation", "BC Parks Elevation"), 
+       col = c("red", "blue"), lwd = 2)
+
+# Minimum elevation BC park
+min_elevation_park <- DATA$Parks[which.min(DATA$Elevation[DATA$Parks]),]$Park
+print(min_elevation_park)
+
+# Maximum elevation BC park
+max_elevation_park <- DATA$Parks[which.max(DATA$Elevation[DATA$Parks]),]$Park 
+print(max_elevation_park)
+```    
+
+     
+     
+Observing the density of BC park elevations to the density of BC elevation in general, we can see the density of BC Parks is highest around an elevation near 0 whereas the density of elevation of BC is highest near 1000, and both fall fast as elevation increases. This indicates the spatial distribution of parks is not random with respect to elevation, if it was random, we would see more overlap between the 2 densities.         
+          
+Minimum elevation park in BC: **`r min_elevation_park`**     
+       
+Maximum elevation park in BC: **`r max_elevation_park`**

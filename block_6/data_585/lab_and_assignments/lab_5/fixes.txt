@@ -1,0 +1,18 @@
+Fixes needed to make the code work:
+
+1. Copilot code referenced packages that I did not have installed and required me to install them, such as 'skopt' -> needed to run 'pip install scikit-optimize'.
+
+2. Error when using BayesSearchCV, currently when using BayesSearchCV and MLPClassifier, cannot specify all hidden_layer_sizes, however the co-pilot did not account for this and specified it the same was as for all the other cases which was causing an error. 
+
+To make the code work the fix was specifying the search space as follows:
+
+search_spaces = {
+    'hidden_layer_sizes': [50,100],
+    'activation': Categorical(['tanh', 'relu']),
+    'solver': Categorical(['sgd', 'adam']),
+    'learning_rate_init': Real(0.001, 0.1, prior='log-uniform')
+}
+
+* This fix was not found from the co-pilot but from stackoverflow instead. (source: https://stackoverflow.com/questions/63308474/error-when-trying-to-tune-mlpclassifier-hidden-layer-sizes-using-bayessearchcv)
+
+3. tpot package needed to be installed. 'tpot' -> 'pip install tpot'.

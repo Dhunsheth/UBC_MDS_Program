@@ -1,0 +1,300 @@
+---
+title: "Assignment 03 - Fitting and Validating Poisson Point Process Models"
+author: "Dhun Sheth"
+date: "`r format(Sys.time(), '%d %B, %Y %H:%M:%OS')`"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+# DO NOT ALTER CODE IN THIS CHUNK
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, fig.width=8, fig.height=6, fig.align = 'center')
+
+```
+
+
+* * *
+
+Complete the following exercises within the lab period and submit to Canvas before leaving. In addition to the points detailed below, 5 points are assigned to the quality of the annotation and to the 'cleanliness' of the code and resulting pdf document. 
+
+## Exercise 1 -- 1 point
+
+We will again be working with the BC Parks dataset, which contains information on the locations of Provincial Parks in British Columbia. The parks belong to 5 different regions. There is also information on elevation (in m) and percent forest cover contained within the dataset.
+
+* Import the BC park locations dataset and convert the data to a `ppp` object (for today you can exclude information on regions).  -- 1 point(s)
+
+Note: You will need to load the `maptools` package and make use of the `as.owin()` function.
+
+### Loading Data and Packages
+
+```{r, message=FALSE, warning=FALSE}
+load('BC_Parks.Rda')
+parks_data <- DATA
+load('BC_Covariates.Rda')
+library(viridis)
+library(colorspace)
+library(spatstat)
+library(sf)
+library(raster)
+#library(maptools)
+```    
+
+
+```{r}
+
+# Window
+
+parks_win <- as.owin(parks_data$Window)
+
+# Converting data to ppp object
+parks_ppp <- ppp(x = parks_data$Parks$X, # X coordinates
+                    y = parks_data$Parks$Y, # Y coordinates
+                    window = parks_win) # Observation window
+
+plot(parks_ppp)
+
+```
+
+## Exercise 2 -- 4 points
+
+* Estimate and plot $\rho$ for the locations of parks as a function of both elevation and forest cover (be sure that the x-axis for elevation does not go below 0).  -- 2 point(s)
+* Check for collinearity between elevation and forest cover (you will need to consider NA values).  -- 1 point(s)
+* Based on these initial analyses, write down the expected form of the model. Provide justification for this starting point.  -- 1 point(s)
+
+Note: Estimating rho can be slow ($\sim$ 1-2 min). Be sure to leave enough time for the document to knit.
+
+```{r}
+
+# Estimate Rho
+rho_elev <- rhohat(parks_ppp, DATA$Elevation)
+
+plot(rho_elev, xlim = c(0, max(rho_elev$X)))
+
+rho_forest <- rhohat(parks_ppp, DATA$Forest)
+
+plot(rho_forest)
+
+```
+
+```{r}
+# Collinearity
+
+cor.im(DATA[[2]], DATA[[3]], use = 'complete.obs')
+
+elevation_values <- DATA$Elevation$v
+forest_values <- DATA$Forest$v
+
+# Determine the number of rows and columns
+num_rows <- dim(elevation_values)[1]
+num_cols <- dim(elevation_values)[2]
+
+# Create a raster object
+elevation_raster <- raster(nrows = num_rows, ncols = num_cols)
+
+values(elevation_raster) <- elevation_values
+
+# Rows and cols for forest raster object
+num_rows <- dim(forest_values)[1]  
+num_cols <- dim(forest_values)[2]  
+
+forest_raster <- raster(nrows = num_rows, ncols = num_cols)
+
+values(forest_raster) <- forest_values
+
+# Resize the forest raster to match the elevation raster
+forest_resized <- resample(forest_raster, elevation_raster, method = "bilinear")
+
+# Plot
+elevation_values <- values(elevation_raster)
+forest_values <- values(forest_resized)
+valid_indices <- !is.na(elevation_values) & !is.na(forest_values)
+elevation_clean <- elevation_values[valid_indices]
+forest_clean <- forest_values[valid_indices]
+
+plot(elevation_clean, 
+     forest_clean, 
+     xlab = "Elevation (m)", 
+     ylab = "Forest Coverage (percent)", 
+     main = "Elevation vs. Forest Coverage",
+     pch = 20)
+
+```
+
+Based on the initial analysis and looking at the rho estimates plotted above, they are somewhat quadratic (espically rho forest) and so an intial starting model can be:      
+$\lambda(u)=e^{\beta_0 + \beta_1*Elevation(u) + \beta_2*Elevation(u)^2 +\beta_3*Forest(u) + \beta_4*Forest(u)^2}$    
+
+
+## Exercise 3 -- 4 points
+
+* Fit the model you have defined in exercise 2 and inspect the model output. -- 1 point(s)
+* Fit a null, intercept only model.  -- 1 point(s)
+* Use AIC and a likelihood ratio test to determine if the model you defined is a better fit than the intercept only model.  -- 1 point(s)
+* Write down the equation for the selected model. -- 0.5 point(s)
+* Use this equation to estimate the intensity of parks at 500m elevation and 50% forest cover.
+
+```{r}
+
+fit <- ppm(parks_ppp ~ Elevation + I(Elevation^2) + Forest + I(Forest^2), data = DATA)
+
+fit
+
+```
+
+Coefficients are all statistically significant. 
+
+```{r}
+
+# Null or intercept only model
+null_fit <- ppm(parks_ppp ~ 1, data = DATA)
+
+null_fit
+
+```
+
+```{r}
+# AIC and LR test
+
+# AIC values
+f <- AIC(fit)
+print(f)
+nf <- AIC(null_fit)
+print(nf)
+change <- AIC(null_fit) - AIC(fit)
+print(change)
+
+# LR
+anova (null_fit, fit, test = "LR")
+
+``` 
+
+Based on the change in AIC being `r change`>0, the extra complexity is well supported by the data.    
+    
+In addition, based on the likelihood ratio test, the p-value is very small, indicating we should reject the simple model in favor of the more complex one.     
+      
+**Fitted Model:**      
+$\lambda(u)=e^{-20.72 -0.004*Elevation(u) -0.0000014*Elevation(u)^2 -0.048*Forest(u) -0.00044*Forest(u)^2}$    
+    
+**Prediction:** $\lambda(500,50)=$ `r exp(fit$coef[1] + fit$coef[2]*500 + fit$coef[3]*500^2 + fit$coef[4]*50 + fit$coef[5]*50^2)`    
+
+## Exercise 4 -- 4 points
+
+* Visualise the fitted model. Note: log scale the estimated intensity when plotting, ignore the standard error. You can use the `n` argument to adjust the resolution  -- 1 point(s)
+* Plot the effects of the individual coefficients. Note: use the median value(s) of the other coefficients.  -- 2 point(s)
+* Visually, do you think the model predictions are a good match to the data?  -- 1 point(s)
+
+```{r}
+
+# Visualizing fitted model
+predicted_intensity <- predict(fit, type="intensity", n=1000)
+
+log_intensity <- log(predicted_intensity)
+
+plot(log_intensity, main="Log-Scaled Intensity of Fitted Model")
+
+plot(parks_ppp, add=TRUE, pch=16, cex=0.8, col="black")
+
+
+median_forest <- median(DATA$Forest)
+
+# Elevational effect on lambda at median forest coverage
+elev_effect <- effectfun(fit, "Elevation", Forest = median_forest, se.fit = T)
+
+median_elev <- median(DATA$Elevation)
+ 
+# Forest coverage effect on lambda at median elevation
+forest_effect <- effectfun(fit, "Forest", Elevation = median_elev, se.fit = T)
+
+#Plot the elevation effect 
+plot(elev_effect,
+     legend = FALSE,
+     lwd = 2,
+     main = "Elevational effect at median Forest Coverage")
+
+#Plot the slope effect 
+plot(forest_effect,
+     legend = FALSE,
+     lwd = 2,
+     main = "Forest Coverage effect at median elevation")
+
+```   
+
+Looking at the effects of the individual coefficients, forest coverage has an effect on lambda at median elevation (2nd graph), however, at median forest coverage there is no real elevational effect (1st graph).   
+     
+Looking at the log-scale fitted model, it seems okay, but can definitely use some improvements, particularly, in the top right corner showing high intensity when there is only a few parks nearby.   
+
+
+## Exercise 5 -- 1 point
+
+* Test whether the observed data deviate significantly from the model predictions. -- 1 point(s)
+
+```{r}
+
+quadrat.test(fit, nx = 5, ny = 2)
+
+```    
+     
+The small p-value above indicates there is significant deviation from our model's predictions to the observed data. 
+
+
+## Exercise 5 -- 2 points     
+         
+# Check this plot and conclusion
+
+* Calculate and plot the model residuals.  -- 1 point(s)
+* Based on the residuals, do you think the model performing well?  -- 1 point(s)
+
+```{r}
+
+# Calculate the residuals
+res <- residuals(fit)
+
+# Visualise
+plot(res,
+     cols = "transparent")
+
+```    
+
+Based on the residuals the model is always under-predicting the intensity, indicating something is probably not being captured and there is room for improvement. There is also no noticable pattern which could indicate the perfomance is not terrible. 
+
+
+## Exercise 6 -- 3 points
+
+* Calculate the partial residuals as a function of both elevation and forest cover.  -- 1 point(s)
+* Do you think that the terms are accurately capturing trends in the data?  -- 1 point(s)
+* Do you have enough information to further refine the model and improve it's accuracy?  -- 1 point(s)
+
+```{r}
+# Calculate the partial residuals as a function of elevation
+par_res_elev <- parres(fit, "Elevation")
+
+# Calculate the relative intensity as a function of gradient
+par_res_forest <- parres(fit, "Forest")
+
+# Side by side plotting
+plot(par_res_elev,
+     legend = FALSE,
+     lwd = 2,
+     main = "",
+     xlab = "Elevation (m)")
+plot(par_res_forest,
+     legend = FALSE,
+     lwd = 2,
+     main = "",
+     xlab = "Forest Coverage (percent)")
+```    
+     
+Based on the partial residual plots, it seems the terms are accurately capturing trends in the data, shown by the quadratic trend.      
+     
+The elevation plot seems to do well and is mostly quadratic, however, based on the plots/information above, the forest coverage term can be improved by using a higher order polynomial rather than just a quadratic term to capture the complexities and it may be worth switching from a linear modelling framework to an additive modelling framework such as GAM's.     
+     
+     
+## Exercise 7 -- 1 points
+
+* Based on these analyses, what have you learned about the spatial distribution of parks in BC?  -- 1 point(s)        
+         
+The spatial distribution of BC parks share some sort of relationship with elevation and forest coverage across BC as shown by the above analysis.    
+    
+In addition, we now have a model which is able to predict (to some degree) the intensity of BC parks for some given elevation and forest coverage percentage.   
+

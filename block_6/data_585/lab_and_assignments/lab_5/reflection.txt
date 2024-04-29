@@ -1,0 +1,5 @@
+Going through this exercise, I learned that co-pilot is extremely useful because from the code it provided I was able to run 3 out of 4 cases very easily, requiring minimal debugging. However, for the BayesSearchCV using MLPClassifier was difficult and even after many attempts/prompts into copilot I was not able to find the answer. I was only able to solve it by checking for solutions on stackoverflow to get the code working error free. 
+
+This shows me although copilot is a very efficient tool, there are limitations and to not be completely dependent on it providing working code everytime. 
+
+I definitely saved time asking copilot, and would very likely use it in the future, however, after 5 or 6 failed answers trying to debugg the same error, it is then better to search online using other resources rather than continuing through copilot. 

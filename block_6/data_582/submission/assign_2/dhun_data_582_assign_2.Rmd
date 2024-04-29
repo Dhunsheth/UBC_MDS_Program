@@ -1,0 +1,214 @@
+---
+title: "DATA-582 Assignment 2"
+author: "Dhun Sheth"
+date: "2024-04-20"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(ggplot2)
+library(bayesrules) 
+library(rstanarm)
+library(bayesplot) 
+```
+
+
+# Question 1
+## Part A
+
+$Prior: \theta\sim N(m=70,\ s^2=4^2)$    
+    
+$Likelihood: x|\theta\sim N(\theta, \ \sigma^2=2.9^2)$    
+    
+$Posterior: \theta|x\sim N(\frac{\frac{n\overline{x}}{\sigma^2}+\frac{m}{s^2}}{\frac{n}{\sigma^2}+\frac{1}{s^2}}, \ \frac{1}{\frac{n}{\sigma^2}+\frac{1}{s^2}})$    
+    
+$=> \theta|x\sim N(\frac{\frac{75.59}{2.9^2} + \frac{70}{4^2}}{\frac{1}{2.9^2}+\frac{1}{4^2}}, \ \frac{1}{\frac{1}{2.9^2}+\frac{1}{4^2}})=N(\mu_{post}=73.664, \ \sigma^2_{post}=5.512)$   
+
+## Part B
+```{r}
+
+lower <- qnorm(0.025, 73.664, sqrt(5.512))
+print(lower)
+upper <- qnorm(0.975, 73.664, sqrt(5.512))
+print(upper)
+
+```    
+
+Symmetric 95% credibility interval for $\theta$: `r lower` < $\theta$ < `r upper`  
+    
+## Part C
+
+The 95% CI interval calculated in Part B indicates there is a 95% probability of $\theta$ being in the calculated interval. Here we can directly call it a probability because the posterior is a proper pdf that describes $\theta$.    
+
+# Question 2
+```{r}
+
+set.seed(32376881) # replace 582 with your student number
+p <- runif(1) # DO NOT LOOK AT THE OUTPUT OF THIS LINE
+n <- 100
+x <- rbinom(1, size=n, prob=p)
+
+```
+
+## Part A   
+```{r}
+a = 1; b=1 # prior hyperparamters
+y = x; n = 100 # binomial data (y = # of success, n = # of trial)
+aa = a+y; bb = b+n-y # posterior parameter values
+
+# Initialization
+t = 1
+nIter = 5000 # number of iterations
+chain <- matrix(NA, nrow = nIter+1, ncol = 3)
+chain[1,] <- 0.0001 # initialization
+
+# set the proposal width:
+pwidth = c(0.002, 0.2, 2)
+
+for (t in 1:nIter){
+  for (i in 1:3){
+    # propose a new value for theta
+    theta.new <- rnorm(1, chain[t,i], pwidth[i])
+    
+    # If theta.new falls outside of [0,1], then reject it with prob 1
+    if (theta.new >1 | theta.new<0){
+    r <- 0
+    } else {
+    # calculate the acceptance probability
+    numerator <- dbeta(theta.new, a, b)*dbinom(y, n, theta.new)
+    denom <- dbeta(chain[t,i], a, b)*dbinom(y, n, chain[t,i])
+    if (denom == 0){
+      r<-0
+    }else{
+      r <- numerator/denom
+    }
+    }
+    aprob <- min(r,1)
+
+    # compare alpha with a generated random number from U(0,1)
+    u <- runif(1)
+    
+    # accept it with probability r
+    if (u < aprob){
+    # If the u > r, accept theta.new.
+    chain[t+1, i] <- theta.new
+    } else {
+    # Otherwise, rejected theta.new,
+    # i.e. we stay at the current state theta.t
+    chain[t+1, i] <- chain[t, i]
+    }
+  }
+}
+
+plot(chain[,1], type="l", ylab=expression(theta^(t)), xlab="Iteration", main ="Trace plot for proposal width = 0.002")
+plot(chain[,2], type="l", ylab=expression(theta^(t)), xlab="Iteration", main ="Trace plot for proposal width = 0.2")
+plot(chain[,3], type="l", ylab=expression(theta^(t)), xlab="Iteration", main ="Trace plot for proposal width = 2")
+```      
+    
+    
+## Part B   
+    
+Looking at the trace plots above, a proposal width of 0.2 is the most optimal because it gives the desired shape indicating the stationary distribution is reached (ie. looks like a furry caterpillar).     
+     
+Proposal width of 0.002 shows the stationary distribution is never reached, and the width is not efficient enough to explore the full parameter space in 5000 iterations.   
+     
+The proposal width of 2 is too large and the step pattern in the trace plot indicates the chain gets stuck too often by not accepting new proposed theta's.   
+
+## Part C   
+```{r}
+
+ergo_m_full_chain <- mean(chain[,2])
+print(sprintf("Full Chain Ergodic Mean: %f", ergo_m_full_chain))
+ergo_m_burned_chain <- mean(chain[100:nrow(chain),2])
+print(sprintf("Ergodic Mean with Burn-in Removed: %f", ergo_m_burned_chain))
+
+print(sprintf("True Value: %f", p))
+```   
+    
+## Part D
+The mean calculated after removing the burn-in period was closer to the true mean, and thus more accurate.   
+     
+It is more accurate because the burn-in region is an area where the stationary distribution has not yet been reached, as a result, draws being done at that point cannot be considered to mimic draws from the posterior, and so including them throws of the ergodic mean.     
+   
+## Part E
+```{r}
+
+lower <- quantile(chain[100:nrow(chain),2], prob=0.05)
+print(lower)
+upper <- quantile(chain[100:nrow(chain),2], prob=0.95)
+print(upper)
+```    
+The 90% credible interval for $p$ is: `r lower[1]` < $p$ < `r upper[1]`    
+
+    
+# Question 3   
+## Part A   
+    
+If they are assuming some sort of linear model for the relationship between penguin flipper length (Y) and body mass (X).    
+    
+$=> Y=\beta_0+\beta_1X+\epsilon$    
+   
+and $\beta_1\sim N(0.01, \ 0.002^2)$    
+   
+Then based on the prior set by the researchers, they strongly believe a 1 gram increase in body mass would give an average of 0.01 mm increase in flipper length. With a standard deviation of 0.002, 95% of the data would fall within 2 standard deviations of the mean indicating $\beta_1$ is very likely between 0.006 and 0.014.   
+
+## Part B
+```{r}
+model <- lm(flipper_length_mm ~ body_mass_g, data = penguins_bayes)
+
+plot(penguins_bayes$body_mass_g, penguins_bayes$flipper_length_mm, ylab="Flipper Length (mm)", xlab="Body Mass (grams)", main ="Penguin Flipper Length vs. Body Mass")
+
+abline(model, col = "red")
+
+```    
+
+Based on the plot between penguin flipper length and body mass, there is a clear relationship between the 2 and it also seems somewhat linear.   
+
+## Part C   
+```{r}
+
+model <- lm(flipper_length_mm ~ bill_length_mm, data = penguins_bayes)
+
+plot(penguins_bayes$bill_length_mm, penguins_bayes$flipper_length_mm, ylab="Flipper Length (mm)", xlab="Bill Length (mm)", main ="Penguin Flipper Length vs. Bill Length")
+
+abline(model, col = "red")
+```   
+$\beta_1\sim N(\mu, \ \sigma^2)$
+
+I would expect the $\sigma$ to be bigger when X = Bill Length because for each bill length, if we draw a normal distribution where the mean is at the linear line in red, the normal distribution would be wider for bill length due to the data being spread further around the red line, as seen in the plot above.  
+  
+However, if we repeat the same scenario for body mass, because the data is more tighter around the red line, a normal distribution with mean at the red line for each body mass gram would be narrower due to the data being more concentrated around the red line, as seen from the plot of Flipper Length vs. Body Mass.  
+   
+As a result, I would expect the $\sigma_{bill \ length}$ for X = Bill Length to be bigger than the $\sigma_{body \ mass}$ for X = Body Mass.  
+    
+## Part D   
+```{r}
+
+penguin_flipper_model <- stan_glm(
+flipper_length_mm ~ body_mass_g,
+data = penguins_bayes, family = gaussian,
+prior_intercept = normal(0, 1000000),
+prior = normal(0.01, 0.002, autoscale = TRUE),
+prior_aux = exponential(0.0001, autoscale = TRUE),
+chains = 4, iter = 10000, seed = 32376881)
+
+summary(penguin_flipper_model)
+
+```
+## Part E   
+```{r}
+
+mcmc_dens_overlay(penguin_flipper_model, pars='body_mass_g')
+
+print(penguin_flipper_model$coefficients)
+
+posterior_interval(penguin_flipper_model, prob = 0.95)
+
+```    
+Looking at the posterior plot of $\beta_1$ we can see its mean is roughly between 0.01 and 0.01005. Printing the actual values we see its approximately at 0.01002. The researchers posterior understanding would be for every 1 gram increase in body mass, the flipper length should increase on average by 0.01002mm.      
+      
+In addition, comparing the 95% interval between the prior $\beta_1$ and above posterior $\beta_1$, we see the posterior interval is smaller, indicating a tighter range.     
+       
+Comparing this to their prior view, the means are very close, indicating that their prior understanding was indeed accurate and their confidence was justified. In addition, the data and analysis helped increase the confidence in the researchers previous understanding, and this is again seen in the 95% interval becoming tighter around the 0.01 mean compared to the interval from the prior.   
